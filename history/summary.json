@@ -1,5 +1,23 @@
 [
   {
+    "name": "Tegy marketing site",
+    "url": "https://tegy.io/",
+    "icon": "https://icons.duckduckgo.com/ip3/tegy.io.ico",
+    "slug": "tegy-marketing-site",
+    "status": "up",
+    "uptime": "100.00%",
+    "uptimeDay": "100.00%",
+    "uptimeWeek": "100.00%",
+    "uptimeMonth": "100.00%",
+    "uptimeYear": "100.00%",
+    "time": 1048,
+    "timeDay": 1048,
+    "timeWeek": 1048,
+    "timeMonth": 1048,
+    "timeYear": 1048,
+    "dailyMinutesDown": {}
+  },
+  {
     "name": "Tegy app health",
     "url": "https://app.tegy.io/health",
     "icon": "https://icons.duckduckgo.com/ip3/app.tegy.io.ico",
@@ -10,11 +28,11 @@
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 89,
-    "timeDay": 89,
-    "timeWeek": 89,
-    "timeMonth": 89,
-    "timeYear": 89,
+    "time": 104,
+    "timeDay": 104,
+    "timeWeek": 104,
+    "timeMonth": 104,
+    "timeYear": 104,
     "dailyMinutesDown": {}
   }
 ]
