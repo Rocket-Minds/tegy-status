@@ -4,19 +4,14 @@ repo: tegy-status
 sites:
   - name: Tegy app health
     slug: tegy-app-health
-    url: https://app.tegy.io/health
+    url: https://status-check.tegy.io/app-health
     expectedStatusCodes:
       - 200
     maxResponseTime: 5000
     __dangerous__body_down_if_text_missing: '"ok":true'
   - name: Tegy chat canary
     slug: tegy-chat-canary
-    method: POST
-    url: https://app.tegy.io/api/status/canary
-    headers:
-      - "Content-Type: application/json"
-      - "X-Tegy-Status-Token: $TEGY_STATUS_CANARY_TOKEN"
-    body: "{}"
+    url: https://status-check.tegy.io/chat-canary
     expectedStatusCodes:
       - 200
     maxResponseTime: 120000

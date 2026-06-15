@@ -1,7 +1,7 @@
 [
   {
     "name": "Tegy app health",
-    "url": "https://app.tegy.io/health",
+    "url": "https://status-check.tegy.io/app-health",
     "icon": "https://icons.duckduckgo.com/ip3/app.tegy.io.ico",
     "slug": "tegy-app-health",
     "status": "up",
@@ -19,7 +19,7 @@
   },
   {
     "name": "Tegy chat canary",
-    "url": "https://app.tegy.io/api/status/canary",
+    "url": "https://status-check.tegy.io/chat-canary",
     "icon": "https://icons.duckduckgo.com/ip3/app.tegy.io.ico",
     "slug": "tegy-chat-canary",
     "status": "up",

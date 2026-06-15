@@ -1,4 +1,4 @@
-url: https://app.tegy.io/api/status/canary
+url: https://status-check.tegy.io/chat-canary
 status: up
 code: 200
 responseTime: 23936
