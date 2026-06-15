@@ -1,0 +1,15 @@
+{
+  "name": "Tegy chat user journey",
+  "slug": "tegy-chat-user-journey",
+  "url": "https://app.tegy.io/new",
+  "status": "up",
+  "summary": "Last browser journey completed using cached phrase \"white pebble\".",
+  "lastChecked": "2026-06-15T13:48:52.059Z",
+  "responseTimeMs": 20016,
+  "lastError": null,
+  "phrase": "white pebble",
+  "runUrl": null,
+  "dailyStates": {
+    "2026-06-15": "up"
+  }
+}

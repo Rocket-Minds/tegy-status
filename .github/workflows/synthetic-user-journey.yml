@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  HAS_SYNTHETIC_SECRETS: ${{ secrets.TEGY_SYNTHETIC_EMAIL != '' && secrets.TEGY_SYNTHETIC_IMAP_HOST != '' && secrets.TEGY_SYNTHETIC_IMAP_USER != '' && secrets.TEGY_SYNTHETIC_IMAP_PASSWORD != '' }}
+  HAS_SYNTHETIC_SECRETS: ${{ secrets.TEGY_SYNTHETIC_EMAIL != '' && secrets.TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_URL != '' && secrets.TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_TOKEN != '' }}
   HAS_DISCORD_WEBHOOK: ${{ secrets.NOTIFICATION_DISCORD_WEBHOOK_URL != '' }}
 
 jobs:
@@ -19,41 +19,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check synthetic configuration
-        if: ${{ env.HAS_SYNTHETIC_SECRETS != 'true' }}
-        run: |
-          echo "Skipping synthetic user journey: required TEGY_SYNTHETIC_* IMAP secrets are not configured."
-
       - name: Checkout
-        if: ${{ env.HAS_SYNTHETIC_SECRETS == 'true' }}
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GH_PAT || github.token }}
 
       - name: Setup Node
-        if: ${{ env.HAS_SYNTHETIC_SECRETS == 'true' }}
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
 
       - name: Install dependencies
-        if: ${{ env.HAS_SYNTHETIC_SECRETS == 'true' }}
         run: npm ci
+
+      - name: Check synthetic configuration
+        if: ${{ env.HAS_SYNTHETIC_SECRETS != 'true' }}
+        run: |
+          echo "Skipping synthetic user journey: required TEGY_SYNTHETIC_EMAIL and magic-link capture secrets are not configured."
 
       - name: Install Chromium
         if: ${{ env.HAS_SYNTHETIC_SECRETS == 'true' }}
         run: npx playwright install --with-deps chromium
 
       - name: Run synthetic user journey
+        id: synthetic
         if: ${{ env.HAS_SYNTHETIC_SECRETS == 'true' }}
+        continue-on-error: true
         run: npm run synthetic:user-journey
         env:
           TEGY_SYNTHETIC_APP_URL: https://app.tegy.io
           TEGY_SYNTHETIC_EMAIL: ${{ secrets.TEGY_SYNTHETIC_EMAIL }}
-          TEGY_SYNTHETIC_IMAP_HOST: ${{ secrets.TEGY_SYNTHETIC_IMAP_HOST }}
-          TEGY_SYNTHETIC_IMAP_PORT: ${{ secrets.TEGY_SYNTHETIC_IMAP_PORT }}
-          TEGY_SYNTHETIC_IMAP_SECURE: ${{ secrets.TEGY_SYNTHETIC_IMAP_SECURE }}
-          TEGY_SYNTHETIC_IMAP_USER: ${{ secrets.TEGY_SYNTHETIC_IMAP_USER }}
-          TEGY_SYNTHETIC_IMAP_PASSWORD: ${{ secrets.TEGY_SYNTHETIC_IMAP_PASSWORD }}
+          TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_URL: ${{ secrets.TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_URL }}
+          TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_TOKEN: ${{ secrets.TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_TOKEN }}
+
+      - name: Update chat journey status
+        env:
+          TEGY_SYNTHETIC_CONFIGURED: ${{ env.HAS_SYNTHETIC_SECRETS }}
+          TEGY_SYNTHETIC_RUN_OUTCOME: ${{ steps.synthetic.outcome || 'skipped' }}
+        run: npm run status:synthetic
+
+      - name: Commit chat journey status
+        run: |
+          git config user.name "Tegy Status Bot"
+          git config user.email "73812536+upptime-bot@users.noreply.github.com"
+          git add history/tegy-chat-user-journey.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Update chat user journey status"
+          git push
 
       - name: Upload synthetic artifacts
         if: always()
@@ -64,10 +77,14 @@ jobs:
           if-no-files-found: ignore
 
       - name: Send Discord failure alert
-        if: failure() && env.HAS_DISCORD_WEBHOOK == 'true'
+        if: steps.synthetic.outcome == 'failure' && env.HAS_DISCORD_WEBHOOK == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.NOTIFICATION_DISCORD_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           payload="$(jq -n --arg run_url "$RUN_URL" '{content: ("Tegy synthetic user journey failed: " + $run_url)}')"
           curl -fsS -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+
+      - name: Fail on synthetic failure
+        if: steps.synthetic.outcome == 'failure'
+        run: exit 1

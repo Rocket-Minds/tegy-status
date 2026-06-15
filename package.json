@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:status-site": "node scripts/build-status-site.mjs",
+    "status:synthetic": "node scripts/update-synthetic-status.mjs",
     "synthetic:user-journey": "node synthetics/user-journey.mjs"
   },
   "dependencies": {
-    "@playwright/test": "^1.60.0",
-    "imapflow": "^1.0.196"
+    "@playwright/test": "^1.60.0"
   }
 }

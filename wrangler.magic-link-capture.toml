@@ -1,0 +1,11 @@
+name = "tegy-synthetic-magic-link"
+main = "worker/magic-link-capture.ts"
+compatibility_date = "2026-06-15"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = "ae1c0947dd494e50a7b7ad5970f5e624"
+
+[vars]
+SYNTHETIC_EMAIL = "status@synthetic.tegy.io"

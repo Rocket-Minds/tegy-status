@@ -1,5 +1,4 @@
 import { chromium, expect } from "@playwright/test"
-import { ImapFlow } from "imapflow"
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 
@@ -19,24 +18,30 @@ const phrases = [
 const appUrl = trimTrailingSlash(
   process.env.TEGY_SYNTHETIC_APP_URL || "https://app.tegy.io",
 )
+const magicLinkCaptureUrl = trimTrailingSlash(
+  process.env.TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_URL || "",
+)
 const artifactDir =
   process.env.TEGY_SYNTHETIC_ARTIFACT_DIR ||
   path.join(process.cwd(), "synthetics", "artifacts")
 const startedAt = new Date()
 const phrase = selectPhrase(startedAt)
 const prompt = `Reply with exactly: ${phrase}`
+const syntheticStartedAtMs = Date.now()
 
 await mkdir(artifactDir, { recursive: true })
 
 try {
   await runJourney()
   await writeResult({
+    durationMs: Date.now() - syntheticStartedAtMs,
     ok: true,
     phrase,
     status: "UP",
   })
 } catch (error) {
   await writeResult({
+    durationMs: Date.now() - syntheticStartedAtMs,
     error: error instanceof Error ? error.message : String(error),
     ok: false,
     phrase,
@@ -100,9 +105,10 @@ async function runJourney() {
 
 async function waitForMagicLink(since) {
   const deadline = Date.now() + getIntegerEnv("TEGY_SYNTHETIC_EMAIL_TIMEOUT_MS", 120_000)
+  const email = requiredEnv("TEGY_SYNTHETIC_EMAIL")
 
   while (Date.now() < deadline) {
-    const link = await findMagicLink(since)
+    const link = await findCapturedMagicLink(email, since)
 
     if (link) {
       return link
@@ -114,77 +120,38 @@ async function waitForMagicLink(since) {
   throw new Error("Timed out waiting for Tegy magic link email.")
 }
 
-async function findMagicLink(since) {
-  const client = new ImapFlow({
-    auth: {
-      pass: requiredEnv("TEGY_SYNTHETIC_IMAP_PASSWORD"),
-      user: requiredEnv("TEGY_SYNTHETIC_IMAP_USER"),
-    },
-    host: requiredEnv("TEGY_SYNTHETIC_IMAP_HOST"),
-    logger: false,
-    port: getIntegerEnv("TEGY_SYNTHETIC_IMAP_PORT", 993),
-    secure: getBooleanEnv("TEGY_SYNTHETIC_IMAP_SECURE", true),
-  })
-
-  await client.connect()
-
-  try {
-    const lock = await client.getMailboxLock("INBOX")
-
-    try {
-      const uids = await client.search({
-        since: new Date(since.getTime() - 60_000),
-      })
-      const recentUids = uids.slice(-25).reverse()
-
-      if (recentUids.length === 0) {
-        return null
-      }
-
-      for await (const message of client.fetch(recentUids, {
-        envelope: true,
-        internalDate: true,
-        source: true,
-      })) {
-        if (!isLikelyTegyMagicLinkEmail(message)) {
-          continue
-        }
-
-        const source = message.source?.toString("utf8") || ""
-        const link = extractMagicLink(source)
-
-        if (link) {
-          return link
-        }
-      }
-    } finally {
-      lock.release()
-    }
-  } finally {
-    await client.logout().catch(() => undefined)
+async function findCapturedMagicLink(email, since) {
+  if (!magicLinkCaptureUrl) {
+    throw new Error("Missing required environment variable: TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_URL")
   }
 
-  return null
-}
+  const url = new URL(`${magicLinkCaptureUrl}/magic-link`)
+  url.searchParams.set("email", email)
+  url.searchParams.set("since", since.toISOString())
 
-function isLikelyTegyMagicLinkEmail(message) {
-  const subject = message.envelope?.subject || ""
-  const from = message.envelope?.from || []
-  const sentAt = message.internalDate?.getTime() || 0
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${requiredEnv("TEGY_SYNTHETIC_MAGIC_LINK_CAPTURE_TOKEN")}`,
+    },
+  })
 
-  return (
-    sentAt >= startedAt.getTime() - 60_000 &&
-    /sign in to tegy/i.test(subject) &&
-    from.some((sender) => /app\.tegy\.io$/i.test(sender.address || ""))
-  )
-}
+  if (response.status === 404) {
+    return null
+  }
 
-function extractMagicLink(source) {
-  const match = source.match(
-    /https:\/\/app\.tegy\.io\/api\/auth\/magic-link\/verify\?token=[^\s"'<>]+/i,
-  )
+  if (!response.ok) {
+    throw new Error(
+      `Magic link capture returned ${response.status}: ${await response.text()}`,
+    )
+  }
 
-  return match ? match[0].replace(/&amp;/g, "&") : null
+  const body = await response.json()
+
+  if (!body.magicLink) {
+    return null
+  }
+
+  return body.magicLink
 }
 
 async function writeResult(result) {
@@ -231,16 +198,6 @@ function getIntegerEnv(name, fallback) {
   const parsed = Number.parseInt(value, 10)
 
   return Number.isFinite(parsed) ? parsed : fallback
-}
-
-function getBooleanEnv(name, fallback) {
-  const value = process.env[name]?.trim().toLowerCase()
-
-  if (!value) {
-    return fallback
-  }
-
-  return value === "1" || value === "true" || value === "yes"
 }
 
 function sleep(ms) {
