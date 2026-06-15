@@ -1,31 +1,53 @@
-# Change these first
-owner: upptime # Your GitHub organization or username, where this repository lives
-repo: upptime # The name of this repository
+owner: Rocket-Minds
+repo: tegy-status
 
 sites:
-  - name: Google
-    url: https://www.google.com
-  - name: Wikipedia
-    url: https://en.wikipedia.org
-  - name: Hacker News
-    url: https://news.ycombinator.com
-  - name: Test Broken Site
-    url: https://thissitedoesnotexist.koj.co
+  - name: Tegy app health
+    slug: tegy-app-health
+    url: https://app.tegy.io/health
+    expectedStatusCodes:
+      - 200
+    maxResponseTime: 5000
+    __dangerous__body_down_if_text_missing: '"ok":true'
+  - name: Tegy chat canary
+    slug: tegy-chat-canary
+    method: POST
+    url: https://app.tegy.io/api/status/canary
+    headers:
+      - "Content-Type: application/json"
+      - "X-Tegy-Status-Token: $TEGY_STATUS_CANARY_TOKEN"
+    body: "{}"
+    expectedStatusCodes:
+      - 200
+    maxResponseTime: 120000
+    __dangerous__body_down_if_text_missing: '"status":"UP"'
+
+workflowSchedule:
+  graphs: "0 0 * * *"
+  responseTime: "0 23 * * *"
+  staticSite: "0 1 * * *"
+  summary: "0 0 * * *"
+  updateTemplate: "0 0 * * *"
+  updates: "0 3 * * *"
+  uptime: "*/30 * * * *"
+
+skipDeleteIssues: true
+
+assignees:
+  - tornikeo
 
 status-website:
-  # Add your custom domain name, or remove the `cname` line if you don't have a domain
-  # Uncomment the `baseUrl` line if you don't have a custom domain and add your repo name there
-  cname: demo.upptime.js.org
-  # baseUrl: /your-repo-name
-  logoUrl: https://raw.githubusercontent.com/upptime/upptime.js.org/master/static/img/icon.svg
-  name: Upptime
-  introTitle: "**Upptime** is the open-source uptime monitor and status page, powered entirely by GitHub."
-  introMessage: This is a sample status page which uses **real-time** data from our [GitHub repository](https://github.com/upptime/upptime). No server required — just GitHub Actions, Issues, and Pages. [**Get your own for free**](https://github.com/upptime/upptime)
+  cname: status.tegy.io
+  logoUrl: https://app.tegy.io/favicon.svg
+  name: Tegy Status
+  introTitle: Tegy service status
+  introMessage: Public uptime and synthetic chat-canary status for Tegy.
   navbar:
     - title: Status
       href: /
+    - title: App
+      href: https://app.tegy.io
     - title: GitHub
       href: https://github.com/$OWNER/$REPO
 
-# Upptime also supports notifications, assigning issues, and more
-# See https://upptime.js.org/docs/configuration
+user-agent: Rocket-Minds
