@@ -1,0 +1,12 @@
+{
+  "name": "tegy-status",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "synthetic:user-journey": "node synthetics/user-journey.mjs"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.60.0",
+    "imapflow": "^1.0.196"
+  }
+}

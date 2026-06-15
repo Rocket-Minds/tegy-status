@@ -2,20 +2,19 @@ owner: Rocket-Minds
 repo: tegy-status
 
 sites:
+  - name: Tegy marketing site
+    slug: tegy-marketing-site
+    url: https://tegy.io/
+    expectedStatusCodes:
+      - 200
+    maxResponseTime: 5000
   - name: Tegy app health
     slug: tegy-app-health
-    url: https://status-check.tegy.io/app-health
+    url: https://app.tegy.io/health
     expectedStatusCodes:
       - 200
     maxResponseTime: 5000
     __dangerous__body_down_if_text_missing: '"ok":true'
-  - name: Tegy chat canary
-    slug: tegy-chat-canary
-    url: https://status-check.tegy.io/chat-canary
-    expectedStatusCodes:
-      - 200
-    maxResponseTime: 120000
-    __dangerous__body_down_if_text_missing: '"status":"UP"'
 
 workflowSchedule:
   graphs: "0 0 * * *"
@@ -36,7 +35,7 @@ status-website:
   logoUrl: https://app.tegy.io/favicon.svg
   name: Tegy Status
   introTitle: Tegy service status
-  introMessage: Public uptime and synthetic chat-canary status for Tegy.
+  introMessage: Public uptime for Tegy domains. Browser-level product journey checks run separately from GitHub Actions.
   navbar:
     - title: Status
       href: /

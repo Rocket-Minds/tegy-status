@@ -1,8 +1,8 @@
 [
   {
     "name": "Tegy app health",
-    "url": "https://status-check.tegy.io/app-health",
-    "icon": "https://icons.duckduckgo.com/ip3/status-check.tegy.io.ico",
+    "url": "https://app.tegy.io/health",
+    "icon": "https://icons.duckduckgo.com/ip3/app.tegy.io.ico",
     "slug": "tegy-app-health",
     "status": "up",
     "uptime": "100.00%",
@@ -15,24 +15,6 @@
     "timeWeek": 89,
     "timeMonth": 89,
     "timeYear": 89,
-    "dailyMinutesDown": {}
-  },
-  {
-    "name": "Tegy chat canary",
-    "url": "https://status-check.tegy.io/chat-canary",
-    "icon": "https://icons.duckduckgo.com/ip3/status-check.tegy.io.ico",
-    "slug": "tegy-chat-canary",
-    "status": "up",
-    "uptime": "100.00%",
-    "uptimeDay": "100.00%",
-    "uptimeWeek": "100.00%",
-    "uptimeMonth": "100.00%",
-    "uptimeYear": "100.00%",
-    "time": 11011,
-    "timeDay": 11011,
-    "timeWeek": 11011,
-    "timeMonth": 11011,
-    "timeYear": 11011,
     "dailyMinutesDown": {}
   }
 ]
