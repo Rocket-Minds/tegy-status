@@ -1,7 +1,7 @@
 url: https://app.tegy.io/api/status/canary
-status: down
-code: 401
-responseTime: 170
-lastUpdated: 2026-06-15T09:36:53.442Z
+status: up
+code: 200
+responseTime: 10822
+lastUpdated: 2026-06-15T09:48:39.206Z
 startTime: 2026-06-15T09:36:40.516Z
 generator: Upptime <https://github.com/upptime/upptime>
