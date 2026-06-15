@@ -3,12 +3,12 @@
   "slug": "tegy-chat-user-journey",
   "url": "https://app.tegy.io/new",
   "status": "up",
-  "summary": "Last browser journey completed using cached phrase \"white pebble\".",
-  "lastChecked": "2026-06-15T13:52:28.135Z",
-  "responseTimeMs": 14783,
+  "summary": "Last browser journey completed using cached phrase \"violet canyon\".",
+  "lastChecked": "2026-06-15T17:28:01.202Z",
+  "responseTimeMs": 26956,
   "lastError": null,
-  "phrase": "white pebble",
-  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27551041780",
+  "phrase": "violet canyon",
+  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27564085955",
   "dailyStates": {
     "2026-06-15": "up"
   }
