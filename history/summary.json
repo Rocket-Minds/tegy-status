@@ -23,18 +23,16 @@
     "icon": "https://icons.duckduckgo.com/ip3/app.tegy.io.ico",
     "slug": "tegy-chat-canary",
     "status": "up",
-    "uptime": "2.93%",
-    "uptimeDay": "2.93%",
-    "uptimeWeek": "2.93%",
-    "uptimeMonth": "2.93%",
-    "uptimeYear": "2.93%",
-    "time": 5496,
-    "timeDay": 5496,
-    "timeWeek": 5496,
-    "timeMonth": 5496,
-    "timeYear": 5496,
-    "dailyMinutesDown": {
-      "2026-06-15": 12
-    }
+    "uptime": "100.00%",
+    "uptimeDay": "100.00%",
+    "uptimeWeek": "100.00%",
+    "uptimeMonth": "100.00%",
+    "uptimeYear": "100.00%",
+    "time": 10822,
+    "timeDay": 10822,
+    "timeWeek": 10822,
+    "timeMonth": 10822,
+    "timeYear": 10822,
+    "dailyMinutesDown": {}
   }
 ]
