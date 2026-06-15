@@ -57,7 +57,7 @@ jobs:
 
       - name: Upload synthetic artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: synthetic-user-journey
           path: synthetics/artifacts
