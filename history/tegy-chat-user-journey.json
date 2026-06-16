@@ -3,12 +3,12 @@
   "slug": "tegy-chat-user-journey",
   "url": "https://app.tegy.io/new",
   "status": "up",
-  "summary": "Last browser journey completed using cached phrase \"blue lantern\".",
-  "lastChecked": "2026-06-16T05:33:52.418Z",
-  "responseTimeMs": 25044,
+  "summary": "Last browser journey completed using cached phrase \"silver comet\".",
+  "lastChecked": "2026-06-16T11:35:10.828Z",
+  "responseTimeMs": 23318,
   "lastError": null,
-  "phrase": "blue lantern",
-  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27596444346",
+  "phrase": "silver comet",
+  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27614571736",
   "dailyStates": {
     "2026-06-15": "up",
     "2026-06-16": "up"
