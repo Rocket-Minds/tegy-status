@@ -3,12 +3,12 @@
   "slug": "tegy-chat-user-journey",
   "url": "https://app.tegy.io/new",
   "status": "up",
-  "summary": "Last browser journey completed using cached phrase \"copper harbor\".",
-  "lastChecked": "2026-06-16T21:20:49.391Z",
-  "responseTimeMs": 25569,
+  "summary": "Last browser journey completed using cached phrase \"red orchard\".",
+  "lastChecked": "2026-06-16T23:48:35.500Z",
+  "responseTimeMs": 18332,
   "lastError": null,
-  "phrase": "copper harbor",
-  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27648887449",
+  "phrase": "red orchard",
+  "runUrl": "https://github.com/Rocket-Minds/tegy-status/actions/runs/27655748589",
   "dailyStates": {
     "2026-06-15": "up",
     "2026-06-16": "up"
