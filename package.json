@@ -3,11 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:status-site": "node scripts/build-status-site.mjs",
-    "status:synthetic": "node scripts/update-synthetic-status.mjs",
-    "synthetic:user-journey": "node synthetics/user-journey.mjs"
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "dev": "wrangler dev --config wrangler.toml"
   },
-  "dependencies": {
-    "@playwright/test": "^1.60.0"
+  "devDependencies": {
+    "@cloudflare/playwright": "^1.3.0",
+    "@cloudflare/workers-types": "^4.20260617.1",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.101.0"
   }
 }
