@@ -1,0 +1,28 @@
+name = "tegy-status"
+main = "worker/status.ts"
+compatibility_date = "2026-06-17"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+routes = [
+  { pattern = "status.tegy.io/*", zone_name = "tegy.io" }
+]
+
+[browser]
+binding = "BROWSER"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[[kv_namespaces]]
+binding = "STATUS_DATA"
+id = "74fa2b304410417fb9c4bb8031450e28"
+
+[[kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = "ae1c0947dd494e50a7b7ad5970f5e624"
+
+[vars]
+APP_URL = "https://app.tegy.io"
+MARKETING_URL = "https://tegy.io"
+SYNTHETIC_EMAIL = "status@synthetic.tegy.io"
