@@ -1,4 +1,9 @@
-import { launch, type BrowserWorker } from "@cloudflare/playwright"
+import {
+  launch,
+  type BrowserWorker,
+  type Locator,
+  type Page,
+} from "@cloudflare/playwright"
 
 type Env = {
   APP_URL?: string
@@ -31,8 +36,12 @@ type ComponentDefinition = {
 }
 
 type CheckSample = {
+  chatUrl?: string
   checkedAt: string
+  consoleMessages?: string[]
+  currentUrl?: string
   error?: string
+  phase?: string
   phrase?: string
   responseTimeMs: number | null
   status: CheckStatus
@@ -82,6 +91,10 @@ const staleAfterMs = 90 * 60 * 1000
 const alertReminderMs = 3 * 60 * 60 * 1000
 const magicLinkTtlSeconds = 10 * 60
 const promptIntervalMs = 30 * 60 * 1000
+const syntheticBrowserKeepAliveMs = 5 * 60 * 1000
+const syntheticPhraseTimeoutMs = 180 * 1000
+const syntheticChatNavigationTimeoutMs = 30 * 1000
+const syntheticWaitHeartbeatMs = 10 * 1000
 const phrases = [
   "pink flamingo",
   "blue lantern",
@@ -275,46 +288,96 @@ async function runSyntheticJourney(
   const appUrl = trimTrailingSlash(env.APP_URL || appUrlDefault)
   const phrase = selectPhrase(startedAt)
   const prompt = `Reply with exactly: ${phrase}`
-  const browser = await launch(env.BROWSER)
+  const consoleMessages: string[] = []
+  let chatUrl: string | undefined
+  let currentUrl: string | undefined
+  let phase = "launch-browser"
+  const browser = await launch(env.BROWSER, {
+    keep_alive: syntheticBrowserKeepAliveMs,
+  })
   const page = await browser.newPage({
     viewport: { height: 900, width: 1280 },
   })
 
   try {
+    page.on("console", (message) => {
+      if (!["error", "warning"].includes(message.type())) return
+
+      consoleMessages.push(
+        truncate(`${message.type()}: ${message.text()}`, 500),
+      )
+    })
+
     page.setDefaultTimeout(30_000)
+    phase = "open-login"
     await page.goto(`${definition.url}?synthetic=status`, {
       waitUntil: "domcontentloaded",
     })
+    currentUrl = page.url()
 
+    phase = "submit-email"
     await page.locator("#auth-email").fill(email)
     await page.getByRole("button", { name: /continue/i }).click()
+    phase = "await-email-screen"
     await page.getByText(/check your email/i).waitFor()
 
+    phase = "await-magic-link"
     const magicLink = await waitForMagicLink(env, email, startedAt)
+    phase = "open-magic-link"
     await page.goto(magicLink, { waitUntil: "domcontentloaded" })
+    currentUrl = page.url()
+    phase = "open-new-chat"
     await page.goto(`${appUrl}/new?synthetic=status`, {
       waitUntil: "domcontentloaded",
     })
+    currentUrl = page.url()
 
+    phase = "await-composer"
     const promptBox = page.getByTestId("new-chat-composer-prompt")
     await promptBox.waitFor()
+    phase = "fill-composer"
     await promptBox.fill(prompt)
+    phase = "submit-composer"
     await page.getByTestId("new-chat-composer-submit-button").click()
-    await page.getByText(phrase, { exact: true }).waitFor({ timeout: 180_000 })
-    await page.waitForURL(/\/chat\/[0-9a-f-]+/, { timeout: 30_000 })
+    currentUrl = page.url()
+    phase = "await-chat-url"
+    await page.waitForURL(/\/chat\/[0-9a-f-]+/, {
+      timeout: syntheticChatNavigationTimeoutMs,
+    })
+    chatUrl = page.url()
+    currentUrl = chatUrl
+    phase = "await-phrase"
+    await waitForVisibleWithHeartbeat({
+      locator: page.getByText(phrase, { exact: true }),
+      page,
+      timeoutMs: syntheticPhraseTimeoutMs,
+    })
 
+    phase = "logout-open-menu"
     await page.getByTestId("sidebar-account-menu-trigger").click()
+    phase = "logout-click"
     await page.getByRole("menuitem", { name: /log out/i }).click()
+    phase = "await-login-after-logout"
     await page.locator("#auth-email").waitFor({ timeout: 30_000 })
 
     return {
+      chatUrl,
       checkedAt: new Date().toISOString(),
+      consoleMessages: trimDiagnostics(consoleMessages),
+      currentUrl: page.url(),
+      phase,
       phrase,
       responseTimeMs: Math.round(performance.now() - startedMs),
       status: "up",
     }
   } catch (error) {
-    return failedSample(errorMessage(error), Math.round(performance.now() - startedMs), phrase)
+    return failedSample(errorMessage(error), Math.round(performance.now() - startedMs), {
+      chatUrl,
+      consoleMessages: trimDiagnostics(consoleMessages),
+      currentUrl: safePageUrl(page, currentUrl),
+      phase,
+      phrase,
+    })
   } finally {
     await browser.close().catch(() => undefined)
   }
@@ -362,19 +425,20 @@ async function persistSample(
   sample: CheckSample,
 ) {
   const existing = await loadStoredComponent(env, definition)
+  const classifiedSample = classifySample(definition, existing, sample)
   const cutoff = Date.now() - sampleRetentionMs
-  const samples = [...existing.samples, sample].filter(
+  const samples = [...existing.samples, classifiedSample].filter(
     (item) => Date.parse(item.checkedAt) >= cutoff,
   )
   const next: StoredComponent = {
     ...definition,
     samples,
-    updatedAt: sample.checkedAt,
+    updatedAt: classifiedSample.checkedAt,
   }
   const previousStatus = deriveCurrentStatus(existing.samples.at(-1))
 
   await env.STATUS_DATA.put(componentKey(definition.slug), JSON.stringify(next))
-  await maybeSendAlert(env, definition, previousStatus, sample)
+  await maybeSendAlert(env, definition, previousStatus, classifiedSample)
 }
 
 async function loadSummary(env: Env) {
@@ -491,6 +555,23 @@ function summarizeDayState(samples: CheckSample[]): CheckStatus {
   return "degraded"
 }
 
+function classifySample(
+  definition: ComponentDefinition,
+  existing: StoredComponent,
+  sample: CheckSample,
+): CheckSample {
+  if (definition.kind !== "browser" || sample.status === "up") {
+    return sample
+  }
+
+  const previousStatus = deriveCurrentStatus(existing.samples.at(-1))
+
+  return {
+    ...sample,
+    status: ["down", "degraded"].includes(previousStatus) ? "down" : "degraded",
+  }
+}
+
 function deriveCurrentStatus(sample: CheckSample | null | undefined): CheckStatus {
   if (!sample) return "unknown"
   if (Date.now() - Date.parse(sample.checkedAt) > staleAfterMs) return "stale"
@@ -555,10 +636,50 @@ async function maybeSendAlert(
     { name: "URL", value: definition.url, inline: false },
   ]
 
+  if (sample.phase) {
+    fields.push({
+      name: "Phase",
+      value: truncate(sample.phase, 200),
+      inline: true,
+    })
+  }
+
+  if (sample.phrase) {
+    fields.push({
+      name: "Phrase",
+      value: truncate(sample.phrase, 200),
+      inline: true,
+    })
+  }
+
+  if (sample.currentUrl) {
+    fields.push({
+      name: "Current URL",
+      value: truncate(sample.currentUrl, 900),
+      inline: false,
+    })
+  }
+
+  if (sample.chatUrl) {
+    fields.push({
+      name: "Chat URL",
+      value: truncate(sample.chatUrl, 900),
+      inline: false,
+    })
+  }
+
   if (sample.error) {
     fields.push({
       name: "Error",
       value: truncate(sample.error, 900),
+      inline: false,
+    })
+  }
+
+  if (sample.consoleMessages?.length) {
+    fields.push({
+      name: "Console",
+      value: truncate(sample.consoleMessages.join("\n"), 900),
       inline: false,
     })
   }
@@ -719,6 +840,7 @@ function renderHistoryPage(
           </div>
           ${renderBars(component, "large")}
           ${component.lastSample?.error ? `<pre class="error">${escapeHtml(component.lastSample.error)}</pre>` : ""}
+          ${renderSampleDiagnostics(component.lastSample)}
         </section>
       </main>
       <footer>
@@ -727,6 +849,38 @@ function renderHistoryPage(
       </footer>
     `,
   })
+}
+
+function renderSampleDiagnostics(sample: CheckSample | null) {
+  if (!sample) return ""
+
+  const rows = [
+    ["Phase", sample.phase],
+    ["Phrase", sample.phrase],
+    ["Current URL", sample.currentUrl],
+    ["Chat URL", sample.chatUrl],
+    [
+      "Console",
+      sample.consoleMessages?.length ? sample.consoleMessages.join("\n") : undefined,
+    ],
+  ].filter((row): row is [string, string] => Boolean(row[1]))
+
+  if (rows.length === 0) return ""
+
+  return `
+    <dl class="sample-diagnostics">
+      ${rows
+        .map(
+          ([label, value]) => `
+            <div>
+              <dt>${escapeHtml(label)}</dt>
+              <dd>${escapeHtml(value)}</dd>
+            </div>
+          `,
+        )
+        .join("")}
+    </dl>
+  `
 }
 
 function renderComponentRow(component: ComponentSummary) {
@@ -1121,6 +1275,33 @@ function pageShell({
         white-space: pre-wrap;
       }
 
+      .sample-diagnostics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 18px 0 0;
+      }
+
+      .sample-diagnostics div {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-soft);
+        padding: 10px 12px;
+      }
+
+      .sample-diagnostics dt {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .sample-diagnostics dd {
+        margin: 4px 0 0;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
       footer {
         width: min(1040px, calc(100vw - 32px));
         margin: 24px auto;
@@ -1164,6 +1345,10 @@ function pageShell({
         }
 
         .detail-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .sample-diagnostics {
           grid-template-columns: 1fr;
         }
       }
@@ -1244,14 +1429,70 @@ function formatDay(day: DaySummary) {
   return `${labelStatus(day.state)} (${day.uptimePercent.toFixed(0)}% uptime)`
 }
 
-function failedSample(error: string, responseTimeMs: number | null = null, phrase?: string) {
+async function waitForVisibleWithHeartbeat({
+  locator,
+  page,
+  timeoutMs,
+}: {
+  locator: Locator
+  page: Page
+  timeoutMs: number
+}) {
+  const deadline = Date.now() + timeoutMs
+  let lastError: unknown
+
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now()
+
+    try {
+      await locator.waitFor({
+        timeout: Math.min(syntheticWaitHeartbeatMs, remainingMs),
+      })
+      return
+    } catch (error) {
+      lastError = error
+
+      if (!isTimeoutError(error)) {
+        throw error
+      }
+
+      await page.title().catch(() => undefined)
+    }
+  }
+
+  throw lastError ?? new Error("Timed out waiting for locator.")
+}
+
+function failedSample(
+  error: string,
+  responseTimeMs: number | null = null,
+  details: Partial<CheckSample> = {},
+): CheckSample {
   return {
+    ...details,
     checkedAt: new Date().toISOString(),
     error,
-    phrase,
     responseTimeMs,
     status: "down" as const,
   }
+}
+
+function isTimeoutError(error: unknown) {
+  const message = errorMessage(error).toLowerCase()
+
+  return message.includes("timeout") || message.includes("timed out")
+}
+
+function safePageUrl(page: Page, fallback?: string) {
+  try {
+    return page.url()
+  } catch {
+    return fallback
+  }
+}
+
+function trimDiagnostics(values: string[]) {
+  return values.slice(-5)
 }
 
 function selectPhrase(date: Date) {
