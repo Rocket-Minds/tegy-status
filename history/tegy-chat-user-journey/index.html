@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tegy chat user journey - Tegy Status</title>
+    <meta name="description" content="Tegy service status and uptime history." />
+    <link rel="icon" href="https://app.tegy.io/favicon.svg" />
+    <style>
+      :root {
+        --bg: #f6f5f2;
+        --surface: #ffffff;
+        --surface-soft: #fbfaf8;
+        --border: #d8d2ca;
+        --text: #24211f;
+        --muted: #6d6660;
+        --green: #1f883d;
+        --green-soft: #dafbe1;
+        --yellow: #9a6700;
+        --yellow-soft: #fff8c5;
+        --red: #cf222e;
+        --red-soft: #ffebe9;
+        --shadow: 0 12px 32px rgb(31 35 40 / 8%);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.45;
+      }
+
+      a { color: inherit; }
+
+      .hero {
+        width: min(1040px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 24px 0 0;
+      }
+
+      .hero.compact { padding-bottom: 0; }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text);
+        font-size: 20px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 28px;
+        height: 28px;
+      }
+
+      .links {
+        display: flex;
+        gap: 16px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .links a { text-decoration: none; }
+      .links a:hover { text-decoration: underline; }
+
+      .banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 36px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        padding: 22px 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .banner h1 {
+        margin: 3px 0 0;
+        font-size: clamp(28px, 5vw, 46px);
+        line-height: 1.05;
+      }
+
+      .banner-ok { border-color: #95d5a6; }
+      .banner-alert { border-color: #f0ad4e; }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        flex: 0 0 auto;
+      }
+
+      .dot-ok { background: var(--green); box-shadow: 0 0 0 8px var(--green-soft); }
+      .dot-alert { background: var(--yellow); box-shadow: 0 0 0 8px var(--yellow-soft); }
+
+      main {
+        width: min(1040px, calc(100vw - 32px));
+        margin: 22px auto 0;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .panel + .panel { margin-top: 18px; }
+
+      .panel-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--border);
+        padding: 18px 20px;
+      }
+
+      .panel-heading h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .panel-heading p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .panel-heading a {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .component {
+        padding: 18px 20px;
+      }
+
+      .component + .component {
+        border-top: 1px solid var(--border);
+      }
+
+      .component-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      .component h3 {
+        margin: 0;
+        font-size: 17px;
+      }
+
+      .component h3 a {
+        text-decoration: none;
+      }
+
+      .component h3 a:hover {
+        text-decoration: underline;
+      }
+
+      .component p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .metrics {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        text-align: right;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-weight: 700;
+      }
+
+      .pill-ok {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .pill-alert {
+        background: var(--yellow-soft);
+        color: var(--yellow);
+      }
+
+      .pill-down {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .uptime-bars {
+        display: grid;
+        grid-template-columns: repeat(90, minmax(2px, 1fr));
+        gap: 3px;
+        min-height: 38px;
+        align-items: stretch;
+      }
+
+      .bar {
+        display: block;
+        min-width: 2px;
+        border-radius: 2px;
+      }
+
+      .bar-up { background: var(--green); }
+      .bar-degraded { background: var(--yellow); }
+      .bar-down { background: var(--red); }
+      .bar-unknown { background: #d0d7de; }
+
+      .axis {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .empty {
+        padding: 26px 20px;
+        color: var(--muted);
+      }
+
+      .incident-list {
+        margin: 0;
+        padding: 12px 20px 20px 40px;
+      }
+
+      .incident-list li + li { margin-top: 10px; }
+      .incident-list span { color: var(--muted); margin-left: 8px; }
+
+      .detail {
+        padding: 22px 24px;
+      }
+
+      .detail h1 {
+        margin: 4px 0 18px;
+        font-size: clamp(30px, 6vw, 48px);
+      }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 22px;
+      }
+
+      .detail-grid div {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface-soft);
+        padding: 12px;
+      }
+
+      .detail-grid span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .detail-grid strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 18px;
+      }
+
+      .uptime-large .uptime-bars {
+        min-height: 90px;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        width: min(1040px, calc(100vw - 32px));
+        margin: 18px auto 36px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 720px) {
+        .nav,
+        .panel-heading,
+        footer {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .links {
+          flex-wrap: wrap;
+        }
+
+        .banner {
+          margin-top: 26px;
+          padding: 18px;
+        }
+
+        .component-top {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          justify-content: flex-start;
+          text-align: left;
+        }
+
+        .uptime-bars {
+          gap: 2px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    
+      <header class="hero compact">
+        <nav class="nav">
+          <a class="brand" href="/">
+            <img src="https://app.tegy.io/favicon.svg" alt="" />
+            <span>Tegy Status</span>
+          </a>
+          <div class="links">
+            <a href="/">Status</a>
+            <a href="https://github.com/Rocket-Minds/tegy-status/blob/master/history/tegy-chat-user-journey.yml">History file</a>
+          </div>
+        </nav>
+      </header>
+      <main>
+        <section class="panel detail">
+          <p class="eyebrow">Component</p>
+          <h1>Tegy chat user journey</h1>
+          <div class="detail-grid">
+            <div><span>Current status</span><strong>Operational</strong></div>
+            <div><span>Overall uptime</span><strong>100.00%</strong></div>
+            <div><span>Average response</span><strong>23 s run</strong></div>
+            <div><span>Last checked</span><strong>2026-06-17 05:17:21</strong></div>
+          </div>
+          
+    <div class="uptime-wrap uptime-large" aria-label="Tegy chat user journey 90-day uptime history">
+      <div class="uptime-bars">
+        
+              <span
+                class="bar bar-unknown"
+                title="Mar 20, 2026: No data"
+                aria-label="Mar 20, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 21, 2026: No data"
+                aria-label="Mar 21, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 22, 2026: No data"
+                aria-label="Mar 22, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 23, 2026: No data"
+                aria-label="Mar 23, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 24, 2026: No data"
+                aria-label="Mar 24, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 25, 2026: No data"
+                aria-label="Mar 25, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 26, 2026: No data"
+                aria-label="Mar 26, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 27, 2026: No data"
+                aria-label="Mar 27, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 28, 2026: No data"
+                aria-label="Mar 28, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 29, 2026: No data"
+                aria-label="Mar 29, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 30, 2026: No data"
+                aria-label="Mar 30, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Mar 31, 2026: No data"
+                aria-label="Mar 31, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 1, 2026: No data"
+                aria-label="Apr 1, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 2, 2026: No data"
+                aria-label="Apr 2, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 3, 2026: No data"
+                aria-label="Apr 3, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 4, 2026: No data"
+                aria-label="Apr 4, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 5, 2026: No data"
+                aria-label="Apr 5, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 6, 2026: No data"
+                aria-label="Apr 6, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 7, 2026: No data"
+                aria-label="Apr 7, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 8, 2026: No data"
+                aria-label="Apr 8, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 9, 2026: No data"
+                aria-label="Apr 9, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 10, 2026: No data"
+                aria-label="Apr 10, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 11, 2026: No data"
+                aria-label="Apr 11, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 12, 2026: No data"
+                aria-label="Apr 12, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 13, 2026: No data"
+                aria-label="Apr 13, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 14, 2026: No data"
+                aria-label="Apr 14, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 15, 2026: No data"
+                aria-label="Apr 15, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 16, 2026: No data"
+                aria-label="Apr 16, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 17, 2026: No data"
+                aria-label="Apr 17, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 18, 2026: No data"
+                aria-label="Apr 18, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 19, 2026: No data"
+                aria-label="Apr 19, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 20, 2026: No data"
+                aria-label="Apr 20, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 21, 2026: No data"
+                aria-label="Apr 21, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 22, 2026: No data"
+                aria-label="Apr 22, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 23, 2026: No data"
+                aria-label="Apr 23, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 24, 2026: No data"
+                aria-label="Apr 24, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 25, 2026: No data"
+                aria-label="Apr 25, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 26, 2026: No data"
+                aria-label="Apr 26, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 27, 2026: No data"
+                aria-label="Apr 27, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 28, 2026: No data"
+                aria-label="Apr 28, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 29, 2026: No data"
+                aria-label="Apr 29, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Apr 30, 2026: No data"
+                aria-label="Apr 30, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 1, 2026: No data"
+                aria-label="May 1, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 2, 2026: No data"
+                aria-label="May 2, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 3, 2026: No data"
+                aria-label="May 3, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 4, 2026: No data"
+                aria-label="May 4, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 5, 2026: No data"
+                aria-label="May 5, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 6, 2026: No data"
+                aria-label="May 6, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 7, 2026: No data"
+                aria-label="May 7, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 8, 2026: No data"
+                aria-label="May 8, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 9, 2026: No data"
+                aria-label="May 9, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 10, 2026: No data"
+                aria-label="May 10, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 11, 2026: No data"
+                aria-label="May 11, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 12, 2026: No data"
+                aria-label="May 12, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 13, 2026: No data"
+                aria-label="May 13, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 14, 2026: No data"
+                aria-label="May 14, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 15, 2026: No data"
+                aria-label="May 15, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 16, 2026: No data"
+                aria-label="May 16, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 17, 2026: No data"
+                aria-label="May 17, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 18, 2026: No data"
+                aria-label="May 18, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 19, 2026: No data"
+                aria-label="May 19, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 20, 2026: No data"
+                aria-label="May 20, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 21, 2026: No data"
+                aria-label="May 21, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 22, 2026: No data"
+                aria-label="May 22, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 23, 2026: No data"
+                aria-label="May 23, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 24, 2026: No data"
+                aria-label="May 24, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 25, 2026: No data"
+                aria-label="May 25, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 26, 2026: No data"
+                aria-label="May 26, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 27, 2026: No data"
+                aria-label="May 27, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 28, 2026: No data"
+                aria-label="May 28, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 29, 2026: No data"
+                aria-label="May 29, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 30, 2026: No data"
+                aria-label="May 30, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="May 31, 2026: No data"
+                aria-label="May 31, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 1, 2026: No data"
+                aria-label="Jun 1, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 2, 2026: No data"
+                aria-label="Jun 2, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 3, 2026: No data"
+                aria-label="Jun 3, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 4, 2026: No data"
+                aria-label="Jun 4, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 5, 2026: No data"
+                aria-label="Jun 5, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 6, 2026: No data"
+                aria-label="Jun 6, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 7, 2026: No data"
+                aria-label="Jun 7, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 8, 2026: No data"
+                aria-label="Jun 8, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 9, 2026: No data"
+                aria-label="Jun 9, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 10, 2026: No data"
+                aria-label="Jun 10, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 11, 2026: No data"
+                aria-label="Jun 11, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 12, 2026: No data"
+                aria-label="Jun 12, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 13, 2026: No data"
+                aria-label="Jun 13, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-unknown"
+                title="Jun 14, 2026: No data"
+                aria-label="Jun 14, 2026: No data"
+              ></span>
+            
+              <span
+                class="bar bar-up"
+                title="Jun 15, 2026: 100% uptime"
+                aria-label="Jun 15, 2026: 100% uptime"
+              ></span>
+            
+              <span
+                class="bar bar-up"
+                title="Jun 16, 2026: 100% uptime"
+                aria-label="Jun 16, 2026: 100% uptime"
+              ></span>
+            
+              <span
+                class="bar bar-up"
+                title="Jun 17, 2026: 100% uptime"
+                aria-label="Jun 17, 2026: 100% uptime"
+              ></span>
+            
+      </div>
+      <div class="axis">
+        <span>90 days ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+  
+        </section>
+      </main>
+      <footer>
+        <span>Backed by Upptime, GitHub Actions, and GitHub Pages.</span>
+        <span>Last generated 2026-06-17 05:26:01 UTC.</span>
+      </footer>
+    
+  </body>
+</html>
