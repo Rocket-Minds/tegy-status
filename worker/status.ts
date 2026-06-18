@@ -3,6 +3,7 @@ import {
   type BrowserWorker,
   type Locator,
   type Page,
+  type Response as PlaywrightResponse,
 } from "@cloudflare/playwright"
 
 type Env = {
@@ -41,10 +42,19 @@ type CheckSample = {
   consoleMessages?: string[]
   currentUrl?: string
   error?: string
+  failedNetworkResponses?: FailedNetworkResponse[]
   phase?: string
   phrase?: string
   responseTimeMs: number | null
   status: CheckStatus
+}
+
+type FailedNetworkResponse = {
+  method: string
+  preview?: string
+  status: number
+  statusText: string
+  url: string
 }
 
 type StoredComponent = ComponentDefinition & {
@@ -289,6 +299,8 @@ async function runSyntheticJourney(
   const phrase = selectPhrase(startedAt)
   const prompt = `Reply with exactly: ${phrase}`
   const consoleMessages: string[] = []
+  const failedNetworkResponses: FailedNetworkResponse[] = []
+  const failedNetworkResponseTasks: Promise<void>[] = []
   let chatUrl: string | undefined
   let currentUrl: string | undefined
   let phase = "launch-browser"
@@ -306,6 +318,17 @@ async function runSyntheticJourney(
       consoleMessages.push(
         truncate(`${message.type()}: ${message.text()}`, 500),
       )
+    })
+    page.on("response", (response) => {
+      if (response.status() < 400) return
+
+      const task = captureFailedNetworkResponse(response)
+        .then((failure) => {
+          failedNetworkResponses.push(failure)
+        })
+        .catch(() => undefined)
+
+      failedNetworkResponseTasks.push(task)
     })
 
     page.setDefaultTimeout(30_000)
@@ -359,22 +382,27 @@ async function runSyntheticJourney(
     await page.getByRole("menuitem", { name: /log out/i }).click()
     phase = "await-login-after-logout"
     await page.locator("#auth-email").waitFor({ timeout: 30_000 })
+    await Promise.allSettled(failedNetworkResponseTasks)
 
     return {
       chatUrl,
       checkedAt: new Date().toISOString(),
       consoleMessages: trimDiagnostics(consoleMessages),
       currentUrl: page.url(),
+      failedNetworkResponses: trimDiagnostics(failedNetworkResponses),
       phase,
       phrase,
       responseTimeMs: Math.round(performance.now() - startedMs),
       status: "up",
     }
   } catch (error) {
+    await Promise.allSettled(failedNetworkResponseTasks)
+
     return failedSample(errorMessage(error), Math.round(performance.now() - startedMs), {
       chatUrl,
       consoleMessages: trimDiagnostics(consoleMessages),
       currentUrl: safePageUrl(page, currentUrl),
+      failedNetworkResponses: trimDiagnostics(failedNetworkResponses),
       phase,
       phrase,
     })
@@ -684,6 +712,14 @@ async function maybeSendAlert(
     })
   }
 
+  if (sample.failedNetworkResponses?.length) {
+    fields.push({
+      name: "Failed Requests",
+      value: truncate(formatFailedNetworkResponses(sample.failedNetworkResponses), 900),
+      inline: false,
+    })
+  }
+
   await fetch(env.DISCORD_WEBHOOK_URL, {
     body: JSON.stringify({
       content,
@@ -862,6 +898,12 @@ function renderSampleDiagnostics(sample: CheckSample | null) {
     [
       "Console",
       sample.consoleMessages?.length ? sample.consoleMessages.join("\n") : undefined,
+    ],
+    [
+      "Failed requests",
+      sample.failedNetworkResponses?.length
+        ? formatFailedNetworkResponses(sample.failedNetworkResponses)
+        : undefined,
     ],
   ].filter((row): row is [string, string] => Boolean(row[1]))
 
@@ -1491,7 +1533,102 @@ function safePageUrl(page: Page, fallback?: string) {
   }
 }
 
-function trimDiagnostics(values: string[]) {
+async function captureFailedNetworkResponse(
+  response: PlaywrightResponse,
+): Promise<FailedNetworkResponse> {
+  const request = response.request()
+  const failure: FailedNetworkResponse = {
+    method: request.method(),
+    status: response.status(),
+    statusText: response.statusText(),
+    url: sanitizeUrl(response.url()),
+  }
+  const preview = await readResponsePreview(response)
+
+  if (preview) {
+    failure.preview = preview
+  }
+
+  return failure
+}
+
+async function readResponsePreview(response: PlaywrightResponse) {
+  const contentType = response.headers()["content-type"] || ""
+
+  if (!isTextualContentType(contentType)) {
+    return undefined
+  }
+
+  try {
+    const text = await response.text()
+    const preview = redactSensitiveText(text).replace(/\s+/g, " ").trim()
+
+    return preview ? truncate(preview, 300) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function isTextualContentType(contentType: string) {
+  return (
+    contentType.startsWith("application/json") ||
+    contentType.startsWith("application/problem+json") ||
+    contentType.startsWith("text/") ||
+    contentType.includes("+json")
+  )
+}
+
+function formatFailedNetworkResponses(responses: FailedNetworkResponse[]) {
+  return responses
+    .map((response) =>
+      [
+        `${response.method} ${response.url} -> ${response.status}${
+          response.statusText ? ` ${response.statusText}` : ""
+        }`,
+        response.preview ? `Preview: ${response.preview}` : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n")
+}
+
+function sanitizeUrl(value: string) {
+  try {
+    const url = new URL(value)
+
+    for (const key of [...url.searchParams.keys()]) {
+      if (isSensitiveQueryKey(key)) {
+        url.searchParams.set(key, "[redacted]")
+      }
+    }
+
+    return redactSensitiveText(url.toString())
+  } catch {
+    return redactSensitiveText(value)
+  }
+}
+
+function isSensitiveQueryKey(key: string) {
+  return /token|code|state|secret|key|password|auth|session/i.test(key)
+}
+
+function redactSensitiveText(value: string) {
+  return value
+    .replace(
+      /https:\/\/app\.tegy\.io\/api\/auth\/magic-link\/verify\?token=[^\s"'<>]+/gi,
+      "https://app.tegy.io/api/auth/magic-link/verify?token=[redacted]",
+    )
+    .replace(
+      /https:\/\/discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi,
+      "[discord webhook redacted]",
+    )
+    .replace(/(authorization|cookie|set-cookie):\s*[^\n\r]+/gi, "$1: [redacted]")
+    .replace(/bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+    .replace(/([?&](?:token|code|state|secret|key|password|auth|session)=)[^&\s"'<>]+/gi, "$1[redacted]")
+}
+
+function trimDiagnostics<T>(values: T[]) {
   return values.slice(-5)
 }
 
