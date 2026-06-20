@@ -5,6 +5,19 @@ import {
   type Page,
   type Response as PlaywrightResponse,
 } from "@cloudflare/playwright"
+import {
+  buildDiscordWebhookPayload,
+  classifySample,
+  deriveCurrentStatus,
+  formatFailedNetworkResponses,
+  labelStatus,
+  type AlertState,
+  type CheckSample,
+  type CheckStatus,
+  type ComponentDefinition,
+  type FailedNetworkResponse,
+  type StoredComponent,
+} from "./status-core"
 
 type Env = {
   APP_URL?: string
@@ -16,50 +29,6 @@ type Env = {
   STATUS_ADMIN_TOKEN?: string
   STATUS_DATA: KVNamespace
   SYNTHETIC_EMAIL?: string
-}
-
-type CheckStatus =
-  | "up"
-  | "degraded"
-  | "down"
-  | "not_configured"
-  | "stale"
-  | "unknown"
-
-type ComponentKind = "http" | "browser"
-
-type ComponentDefinition = {
-  description: string
-  kind: ComponentKind
-  name: string
-  slug: string
-  url: string
-}
-
-type CheckSample = {
-  chatUrl?: string
-  checkedAt: string
-  consoleMessages?: string[]
-  currentUrl?: string
-  error?: string
-  failedNetworkResponses?: FailedNetworkResponse[]
-  phase?: string
-  phrase?: string
-  responseTimeMs: number | null
-  status: CheckStatus
-}
-
-type FailedNetworkResponse = {
-  method: string
-  preview?: string
-  status: number
-  statusText: string
-  url: string
-}
-
-type StoredComponent = ComponentDefinition & {
-  samples: CheckSample[]
-  updatedAt: string
 }
 
 type ComponentSummary = ComponentDefinition & {
@@ -87,17 +56,11 @@ type MagicLinkRecord = {
   to: string
 }
 
-type AlertState = {
-  lastAlertAt?: string
-  lastStatus?: CheckStatus
-}
-
 const appUrlDefault = "https://app.tegy.io"
 const marketingUrlDefault = "https://tegy.io"
 const syntheticEmailDefault = "status@synthetic.tegy.io"
 const historyDays = 90
 const sampleRetentionMs = historyDays * 24 * 60 * 60 * 1000
-const staleAfterMs = 90 * 60 * 1000
 const alertReminderMs = 3 * 60 * 60 * 1000
 const magicLinkTtlSeconds = 10 * 60
 const promptIntervalMs = 30 * 60 * 1000
@@ -413,13 +376,23 @@ async function runSyntheticJourney(
 
 async function fetchWithTimeout(url: string, timeoutMs: number) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let didTimeout = false
+  const timer = setTimeout(() => {
+    didTimeout = true
+    controller.abort()
+  }, timeoutMs)
 
   try {
     return await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
     })
+  } catch (error) {
+    if (didTimeout) {
+      throw new Error(`Timed out after ${timeoutMs}ms.`)
+    }
+
+    throw error
   } finally {
     clearTimeout(timer)
   }
@@ -583,29 +556,6 @@ function summarizeDayState(samples: CheckSample[]): CheckStatus {
   return "degraded"
 }
 
-function classifySample(
-  definition: ComponentDefinition,
-  existing: StoredComponent,
-  sample: CheckSample,
-): CheckSample {
-  if (definition.kind !== "browser" || sample.status === "up") {
-    return sample
-  }
-
-  const previousStatus = deriveCurrentStatus(existing.samples.at(-1))
-
-  return {
-    ...sample,
-    status: ["down", "degraded"].includes(previousStatus) ? "down" : "degraded",
-  }
-}
-
-function deriveCurrentStatus(sample: CheckSample | null | undefined): CheckStatus {
-  if (!sample) return "unknown"
-  if (Date.now() - Date.parse(sample.checkedAt) > staleAfterMs) return "stale"
-  return sample.status
-}
-
 function deriveGlobalStatus(components: ComponentSummary[]): CheckStatus {
   if (components.some((component) => component.status === "down")) return "down"
   if (
@@ -654,86 +604,8 @@ async function maybeSendAlert(
     return
   }
 
-  const content =
-    currentStatus === "up"
-      ? `Tegy status recovered: ${definition.name} is up.`
-      : `Tegy status alert: ${definition.name} is ${labelStatus(currentStatus)}.`
-  const fields = [
-    { name: "Component", value: definition.name, inline: true },
-    { name: "Status", value: labelStatus(currentStatus), inline: true },
-    { name: "URL", value: definition.url, inline: false },
-  ]
-
-  if (sample.phase) {
-    fields.push({
-      name: "Phase",
-      value: truncate(sample.phase, 200),
-      inline: true,
-    })
-  }
-
-  if (sample.phrase) {
-    fields.push({
-      name: "Phrase",
-      value: truncate(sample.phrase, 200),
-      inline: true,
-    })
-  }
-
-  if (sample.currentUrl) {
-    fields.push({
-      name: "Current URL",
-      value: truncate(sample.currentUrl, 900),
-      inline: false,
-    })
-  }
-
-  if (sample.chatUrl) {
-    fields.push({
-      name: "Chat URL",
-      value: truncate(sample.chatUrl, 900),
-      inline: false,
-    })
-  }
-
-  if (sample.error) {
-    fields.push({
-      name: "Error",
-      value: truncate(sample.error, 900),
-      inline: false,
-    })
-  }
-
-  if (sample.consoleMessages?.length) {
-    fields.push({
-      name: "Console",
-      value: truncate(sample.consoleMessages.join("\n"), 900),
-      inline: false,
-    })
-  }
-
-  if (sample.failedNetworkResponses?.length) {
-    fields.push({
-      name: "Failed Requests",
-      value: truncate(formatFailedNetworkResponses(sample.failedNetworkResponses), 900),
-      inline: false,
-    })
-  }
-
   await fetch(env.DISCORD_WEBHOOK_URL, {
-    body: JSON.stringify({
-      content,
-      embeds: [
-        {
-          color: currentStatus === "up" ? 0x1f883d : 0xcf222e,
-          fields,
-          footer: { text: "status.tegy.io" },
-          timestamp: sample.checkedAt,
-          title: content,
-          url: "https://status.tegy.io",
-        },
-      ],
-    }),
+    body: JSON.stringify(buildDiscordWebhookPayload(definition, sample)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   }).catch(() => undefined)
@@ -1422,23 +1294,6 @@ function titleForGlobalStatus(status: CheckStatus) {
   return "Monitoring Attention Required"
 }
 
-function labelStatus(status: CheckStatus) {
-  switch (status) {
-    case "up":
-      return "Up"
-    case "degraded":
-      return "Degraded"
-    case "down":
-      return "Down"
-    case "not_configured":
-      return "Not configured"
-    case "stale":
-      return "Stale"
-    default:
-      return "Unknown"
-  }
-}
-
 function pillClass(status: CheckStatus) {
   if (status === "up") return "pill-ok"
   if (status === "down") return "pill-down"
@@ -1576,21 +1431,6 @@ function isTextualContentType(contentType: string) {
     contentType.startsWith("text/") ||
     contentType.includes("+json")
   )
-}
-
-function formatFailedNetworkResponses(responses: FailedNetworkResponse[]) {
-  return responses
-    .map((response) =>
-      [
-        `${response.method} ${response.url} -> ${response.status}${
-          response.statusText ? ` ${response.statusText}` : ""
-        }`,
-        response.preview ? `Preview: ${response.preview}` : undefined,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    )
-    .join("\n\n")
 }
 
 function sanitizeUrl(value: string) {
