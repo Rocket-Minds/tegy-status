@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
     "lib": ["ES2022", "DOM", "WebWorker"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -10,5 +11,5 @@
     "target": "ES2022",
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker/**/*.ts"]
+  "include": ["worker/**/*.ts", "scripts/**/*.ts"]
 }
