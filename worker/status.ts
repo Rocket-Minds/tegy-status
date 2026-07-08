@@ -11,6 +11,7 @@ import {
   deriveCurrentStatus,
   formatFailedNetworkResponses,
   labelStatus,
+  shouldSendDiscordAlert,
   type AlertState,
   type CheckSample,
   type CheckStatus,
@@ -64,7 +65,7 @@ const sampleRetentionMs = historyDays * 24 * 60 * 60 * 1000
 const alertReminderMs = 3 * 60 * 60 * 1000
 const magicLinkTtlSeconds = 10 * 60
 const promptIntervalMs = 30 * 60 * 1000
-const syntheticBrowserKeepAliveMs = 5 * 60 * 1000
+const syntheticBrowserKeepAliveMs = 10 * 60 * 1000
 const syntheticPhraseTimeoutMs = 180 * 1000
 const syntheticChatNavigationTimeoutMs = 30 * 1000
 const syntheticWaitHeartbeatMs = 10 * 1000
@@ -582,20 +583,15 @@ async function maybeSendAlert(
     type: "json",
   })
   const currentStatus = sample.status
-  const lastAlertAt = Date.parse(alertState?.lastAlertAt || "")
-  const shouldSendRecovery =
-    currentStatus === "up" &&
-    alertState?.lastStatus &&
-    alertState.lastStatus !== "up"
-  const shouldSendFailure =
-    currentStatus !== "up" &&
-    (previousStatus === "up" ||
-      previousStatus === "unknown" ||
-      alertState?.lastStatus !== currentStatus ||
-      !Number.isFinite(lastAlertAt) ||
-      Date.now() - lastAlertAt > alertReminderMs)
+  const shouldSendAlert = shouldSendDiscordAlert({
+    alertReminderMs,
+    alertState,
+    currentStatus,
+    nowMs: Date.now(),
+    previousStatus,
+  })
 
-  if (!shouldSendRecovery && !shouldSendFailure) {
+  if (!shouldSendAlert) {
     await env.STATUS_DATA.put(
       alertKey(definition.slug),
       JSON.stringify({
@@ -616,6 +612,7 @@ async function maybeSendAlert(
     alertKey(definition.slug),
     JSON.stringify({
       lastAlertAt: new Date().toISOString(),
+      lastNotifiedStatus: currentStatus,
       lastStatus: currentStatus,
     } satisfies AlertState),
   )
