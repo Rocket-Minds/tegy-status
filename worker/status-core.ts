@@ -44,6 +44,7 @@ export type StoredComponent = ComponentDefinition & {
 
 export type AlertState = {
   lastAlertAt?: string
+  lastNotifiedStatus?: CheckStatus
   lastStatus?: CheckStatus
 }
 
@@ -93,6 +94,42 @@ export function labelStatus(status: CheckStatus) {
     default:
       return "Unknown"
   }
+}
+
+export function shouldSendDiscordAlert({
+  alertReminderMs,
+  alertState,
+  currentStatus,
+  nowMs,
+  previousStatus,
+}: {
+  alertReminderMs: number
+  alertState: AlertState | null | undefined
+  currentStatus: CheckStatus
+  nowMs: number
+  previousStatus: CheckStatus
+}) {
+  const lastAlertAt = Date.parse(alertState?.lastAlertAt || "")
+  const lastNotifiedStatus =
+    alertState?.lastNotifiedStatus ??
+    (alertState?.lastAlertAt ? alertState.lastStatus : undefined)
+
+  if (currentStatus === "up") {
+    return Boolean(lastNotifiedStatus && lastNotifiedStatus !== "up")
+  }
+
+  if (currentStatus === "degraded") {
+    return false
+  }
+
+  return (
+    previousStatus === "up" ||
+    previousStatus === "unknown" ||
+    previousStatus === "degraded" ||
+    lastNotifiedStatus !== currentStatus ||
+    !Number.isFinite(lastAlertAt) ||
+    nowMs - lastAlertAt > alertReminderMs
+  )
 }
 
 export function buildDiscordWebhookPayload(
