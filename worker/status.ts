@@ -6,12 +6,12 @@ import {
   type Response as PlaywrightResponse,
 } from "@cloudflare/playwright"
 import {
-  buildDiscordWebhookPayload,
+  buildSlackWebhookPayload,
   classifySample,
   deriveCurrentStatus,
   formatFailedNetworkResponses,
   labelStatus,
-  shouldSendDiscordAlert,
+  shouldSendSlackAlert,
   type AlertState,
   type CheckSample,
   type CheckStatus,
@@ -24,7 +24,7 @@ type Env = {
   APP_URL?: string
   BROWSER: BrowserWorker
   CAPTURE_TOKEN?: string
-  DISCORD_WEBHOOK_URL?: string
+  SLACK_WEBHOOK_URL?: string
   MAGIC_LINKS: KVNamespace
   MARKETING_URL?: string
   STATUS_ADMIN_TOKEN?: string
@@ -577,13 +577,13 @@ async function maybeSendAlert(
   previousStatus: CheckStatus,
   sample: CheckSample,
 ) {
-  if (!env.DISCORD_WEBHOOK_URL) return
+  if (!env.SLACK_WEBHOOK_URL) return
 
   const alertState = await env.STATUS_DATA.get<AlertState>(alertKey(definition.slug), {
     type: "json",
   })
   const currentStatus = sample.status
-  const shouldSendAlert = shouldSendDiscordAlert({
+  const shouldSendAlert = shouldSendSlackAlert({
     alertReminderMs,
     alertState,
     currentStatus,
@@ -602,11 +602,29 @@ async function maybeSendAlert(
     return
   }
 
-  await fetch(env.DISCORD_WEBHOOK_URL, {
-    body: JSON.stringify(buildDiscordWebhookPayload(definition, sample)),
+  const response = await fetch(env.SLACK_WEBHOOK_URL, {
+    body: JSON.stringify(buildSlackWebhookPayload(definition, sample)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   }).catch(() => undefined)
+
+  if (!response?.ok) {
+    console.warn(
+      JSON.stringify({
+        component: definition.slug,
+        event: "status.slack_alert_failed",
+        status: response?.status,
+      }),
+    )
+    await env.STATUS_DATA.put(
+      alertKey(definition.slug),
+      JSON.stringify({
+        ...alertState,
+        lastStatus: currentStatus,
+      } satisfies AlertState),
+    )
+    return
+  }
 
   await env.STATUS_DATA.put(
     alertKey(definition.slug),
@@ -1460,7 +1478,11 @@ function redactSensitiveText(value: string) {
     )
     .replace(
       /https:\/\/discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>]+/gi,
-      "[discord webhook redacted]",
+      "[webhook redacted]",
+    )
+    .replace(
+      /https:\/\/hooks\.slack\.com\/services\/[^\s"'<>]+/gi,
+      "[webhook redacted]",
     )
     .replace(/(authorization|cookie|set-cookie):\s*[^\n\r]+/gi, "$1: [redacted]")
     .replace(/bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")

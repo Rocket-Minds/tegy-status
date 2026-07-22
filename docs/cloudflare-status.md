@@ -38,7 +38,7 @@ Gateway cache misses bounded.
 
 ## Alerting
 
-Discord alerts fire when a component enters a non-up state, recovers, or remains
+Slack alerts fire when a component enters a non-up state, recovers, or remains
 unhealthy long enough to pass the reminder window.
 
 Alerts are sent only from the status Worker. Tegy app production does not need to
@@ -51,4 +51,4 @@ GitHub is intentionally not in the runtime path. A GitHub outage should not stop
 - loading `status.tegy.io`,
 - scheduled uptime checks,
 - synthetic browser checks,
-- Discord status alerts.
+- Slack status alerts.
