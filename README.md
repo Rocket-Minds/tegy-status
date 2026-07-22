@@ -3,7 +3,7 @@
 `status.tegy.io` is an independent Cloudflare Worker status app for Tegy.
 
 GitHub is only source control. The public status page, scheduled checks, uptime
-history, and Discord alerts are served and run by Cloudflare:
+history, and Slack alerts are served and run by Cloudflare:
 
 - Cloudflare Worker: renders the status UI and JSON API.
 - Worker Cron: runs checks every 30 minutes.
@@ -49,7 +49,7 @@ Non-secret vars are in `wrangler.toml`:
 Required secrets:
 
 - `STATUS_ADMIN_TOKEN` - bearer token for `POST /api/check`.
-- `DISCORD_WEBHOOK_URL` - Discord webhook for status alerts.
+- `SLACK_WEBHOOK_URL` - Slack incoming webhook bound to Tegy's `#alerts` channel.
 
 Optional protected endpoint secret:
 
@@ -60,7 +60,7 @@ Set secrets with:
 
 ```sh
 npx wrangler secret put STATUS_ADMIN_TOKEN --config wrangler.toml
-npx wrangler secret put DISCORD_WEBHOOK_URL --config wrangler.toml
+npx wrangler secret put SLACK_WEBHOOK_URL --config wrangler.toml
 npx wrangler secret put CAPTURE_TOKEN --config wrangler.toml
 ```
 

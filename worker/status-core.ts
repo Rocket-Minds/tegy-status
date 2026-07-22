@@ -96,7 +96,7 @@ export function labelStatus(status: CheckStatus) {
   }
 }
 
-export function shouldSendDiscordAlert({
+export function shouldSendSlackAlert({
   alertReminderMs,
   alertState,
   currentStatus,
@@ -132,7 +132,7 @@ export function shouldSendDiscordAlert({
   )
 }
 
-export function buildDiscordWebhookPayload(
+export function buildSlackWebhookPayload(
   definition: ComponentDefinition,
   sample: CheckSample,
 ) {
@@ -203,22 +203,77 @@ export function buildDiscordWebhookPayload(
     })
   }
 
+  const title =
+    currentStatus === "up"
+      ? `${definition.name} recovered`
+      : `${definition.name} ${labelStatus(currentStatus)}`
+
   return {
-    content,
-    embeds: [
+    attachments: [
       {
-        color: colorForStatus(currentStatus),
-        fields,
-        footer: { text: "status.tegy.io" },
-        timestamp: sample.checkedAt,
-        title:
-          currentStatus === "up"
-            ? `${definition.name} recovered`
-            : `${definition.name} ${labelStatus(currentStatus)}`,
-        url: "https://status.tegy.io",
+        blocks: buildSlackBlocks(title, fields, sample.checkedAt),
+        color: `#${colorForStatus(currentStatus).toString(16).padStart(6, "0")}`,
       },
     ],
+    text: escapeSlackText(content),
   }
+}
+
+function buildSlackBlocks(
+  title: string,
+  fields: Array<{ inline: boolean; name: string; value: string }>,
+  checkedAt: string,
+) {
+  const blocks: Array<Record<string, unknown>> = [
+    {
+      text: {
+        text: `*<https://status.tegy.io|${escapeSlackText(title)}>*`,
+        type: "mrkdwn",
+      },
+      type: "section",
+    },
+  ]
+  let inlineFields: Array<{ text: string; type: "mrkdwn" }> = []
+
+  const flushInlineFields = () => {
+    if (inlineFields.length === 0) return
+    blocks.push({ fields: inlineFields, type: "section" })
+    inlineFields = []
+  }
+
+  for (const field of fields) {
+    const text = `*${escapeSlackText(field.name)}*\n${escapeSlackText(field.value)}`
+
+    if (!field.inline) {
+      flushInlineFields()
+      blocks.push({ text: { text, type: "mrkdwn" }, type: "section" })
+      continue
+    }
+
+    inlineFields.push({ text, type: "mrkdwn" })
+
+    if (inlineFields.length === 10) flushInlineFields()
+  }
+
+  flushInlineFields()
+  blocks.push({
+    elements: [
+      {
+        text: `status.tegy.io • ${escapeSlackText(checkedAt)}`,
+        type: "mrkdwn",
+      },
+    ],
+    type: "context",
+  })
+
+  return blocks
+}
+
+function escapeSlackText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
 }
 
 export function formatFailedNetworkResponses(responses: FailedNetworkResponse[]) {

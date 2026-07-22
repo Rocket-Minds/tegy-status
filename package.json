@@ -5,6 +5,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "node scripts/test-status-worker.ts",
+    "verify:slack-live": "node scripts/verify-slack-alert.ts",
     "deploy": "wrangler deploy --config wrangler.toml",
     "dev": "wrangler dev --config wrangler.toml"
   },

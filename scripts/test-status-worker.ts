@@ -1,7 +1,7 @@
 import {
-  buildDiscordWebhookPayload,
+  buildSlackWebhookPayload,
   classifySample,
-  shouldSendDiscordAlert,
+  shouldSendSlackAlert,
   type AlertState,
   type CheckSample,
   type ComponentDefinition,
@@ -11,12 +11,6 @@ import {
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected) {
     throw new Error(`${message}. Expected ${String(expected)}, got ${String(actual)}.`)
-  }
-}
-
-function assertNotEqual<T>(actual: T, expected: T, message: string) {
-  if (actual === expected) {
-    throw new Error(`${message}. Both values were ${String(actual)}.`)
   }
 }
 
@@ -89,22 +83,25 @@ async function testHttpTimeoutRequiresConsecutiveFailure() {
   )
 }
 
-async function testDiscordAlertDoesNotDuplicateContentAndTitle() {
-  const payload = buildDiscordWebhookPayload(marketingDefinition, {
+async function testSlackAlertPreservesFallbackAndBlockDetails() {
+  const payload = buildSlackWebhookPayload(marketingDefinition, {
     ...sample("degraded", "Timed out after 20000ms."),
     checkedAt: "2026-06-20T11:30:22.293Z",
   })
 
-  assertOk(payload.content, "Discord payload should include message content")
-  assertOk(payload.embeds?.[0]?.title, "Discord payload should include embed title")
-  assertNotEqual(
-    payload.embeds?.[0]?.title,
-    payload.content,
-    "Discord content and embed title should not repeat the exact same alert text",
+  assertOk(payload.text, "Slack payload should include fallback text")
+  assertEqual(
+    payload.attachments[0]?.color,
+    "#9a6700",
+    "Slack payload should preserve status color",
   )
+  const blocks = JSON.stringify(payload.attachments[0]?.blocks)
+  assertOk(blocks.includes("Tegy marketing site Degraded"), "Slack blocks should include the alert title")
+  assertOk(blocks.includes("status.tegy.io"), "Slack blocks should link to the status page")
+  assertOk(blocks.includes("Timed out after 20000ms."), "Slack blocks should include diagnostics")
 }
 
-async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
+async function testSlackAlertSuppressesSingleDegradedBrowserRun() {
   const firstFailure = classifySample(
     browserDefinition,
     storedComponent(browserDefinition, [sample("up")]),
@@ -120,7 +117,7 @@ async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
     "first browser failure after an up check should be degraded",
   )
   assertEqual(
-    shouldSendDiscordAlert({
+    shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "up" },
       currentStatus: firstFailure.status,
@@ -128,10 +125,10 @@ async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
       previousStatus: "up",
     }),
     false,
-    "single degraded browser run should update status history without Discord paging",
+    "single degraded browser run should update status history without Slack paging",
   )
   assertEqual(
-    shouldSendDiscordAlert({
+    shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "degraded" },
       currentStatus: "up",
@@ -154,7 +151,7 @@ async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
     "consecutive browser failure should become down",
   )
   assertEqual(
-    shouldSendDiscordAlert({
+    shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "degraded" },
       currentStatus: secondFailure.status,
@@ -162,10 +159,10 @@ async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
       previousStatus: "degraded",
     }),
     true,
-    "repeated browser failure should send a Discord page",
+    "repeated browser failure should send a Slack page",
   )
   assertEqual(
-    shouldSendDiscordAlert({
+    shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastNotifiedStatus: "down", lastStatus: "down" },
       currentStatus: "up",
@@ -177,14 +174,14 @@ async function testDiscordAlertSuppressesSingleDegradedBrowserRun() {
   )
 }
 
-async function testDiscordAlertRecoversLegacyDegradedNotifications() {
+async function testSlackAlertRecoversLegacyDegradedNotifications() {
   const legacyAlertState: AlertState = {
     lastAlertAt: "2026-07-08T04:01:00.000Z",
     lastStatus: "degraded",
   }
 
   assertEqual(
-    shouldSendDiscordAlert({
+    shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: legacyAlertState,
       currentStatus: "up",
@@ -197,8 +194,8 @@ async function testDiscordAlertRecoversLegacyDegradedNotifications() {
 }
 
 await testHttpTimeoutRequiresConsecutiveFailure()
-await testDiscordAlertDoesNotDuplicateContentAndTitle()
-await testDiscordAlertSuppressesSingleDegradedBrowserRun()
-await testDiscordAlertRecoversLegacyDegradedNotifications()
+await testSlackAlertPreservesFallbackAndBlockDetails()
+await testSlackAlertSuppressesSingleDegradedBrowserRun()
+await testSlackAlertRecoversLegacyDegradedNotifications()
 
 console.log("Status worker tests passed.")
