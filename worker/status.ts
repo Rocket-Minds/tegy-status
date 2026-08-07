@@ -304,7 +304,9 @@ async function runSyntheticJourney(
 
     phase = "submit-email"
     await page.locator("#auth-email").fill(email)
-    await page.getByRole("button", { name: /continue/i }).click()
+    await page
+      .getByRole("button", { name: "Continue with email", exact: true })
+      .click()
     phase = "await-email-screen"
     const emailSentState = page.getByTestId("auth-link-sent-state")
     await emailSentState.waitFor()
