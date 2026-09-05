@@ -1,7 +1,5 @@
 import {
-  buildSlackWebhookPayload,
-  type CheckSample,
-  type ComponentDefinition,
+  buildSlackVerificationPayload,
 } from "../worker/status-core.ts"
 
 declare const process: { env: Record<string, string | undefined> }
@@ -12,22 +10,8 @@ if (!webhookUrl) {
   throw new Error("SLACK_WEBHOOK_URL is required.")
 }
 
-const definition: ComponentDefinition = {
-  description: "Synthetic verification of the status alert transport.",
-  kind: "browser",
-  name: "Slack status integration verification",
-  slug: "slack-status-integration-verification",
-  url: "https://status.tegy.io",
-}
-const sample: CheckSample = {
-  checkedAt: new Date().toISOString(),
-  error: "Synthetic verification only. No Tegy component is down.",
-  phase: "webhook-verification",
-  responseTimeMs: null,
-  status: "down",
-}
 const response = await fetch(webhookUrl, {
-  body: JSON.stringify(buildSlackWebhookPayload(definition, sample)),
+  body: JSON.stringify(buildSlackVerificationPayload(new Date().toISOString())),
   headers: { "Content-Type": "application/json" },
   method: "POST",
 })

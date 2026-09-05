@@ -1,5 +1,6 @@
 import {
   buildSlackWebhookPayload,
+  buildSlackVerificationPayload,
   classifySample,
   shouldSendSlackAlert,
   type AlertState,
@@ -99,6 +100,21 @@ async function testSlackAlertPreservesFallbackAndBlockDetails() {
   assertOk(blocks.includes("Tegy marketing site Degraded"), "Slack blocks should include the alert title")
   assertOk(blocks.includes("status.tegy.io"), "Slack blocks should link to the status page")
   assertOk(blocks.includes("Timed out after 20000ms."), "Slack blocks should include diagnostics")
+}
+
+async function testSlackVerificationCannotLookLikeAnIncident() {
+  const payload = buildSlackVerificationPayload("2026-09-05T08:00:00.000Z")
+  const content = JSON.stringify(payload)
+
+  assertOk(
+    content.includes("Slack status alert delivery test") &&
+      content.includes("No production incident occurred"),
+    "Slack verification should identify itself as a harmless delivery test",
+  )
+  assertOk(
+    !content.includes("Down") && !content.includes("Degraded"),
+    "Slack verification should not use incident status labels",
+  )
 }
 
 async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
@@ -229,6 +245,7 @@ async function testSlackAlertRecoversLegacyDegradedNotifications() {
 
 await testHttpTimeoutRequiresConsecutiveFailure()
 await testSlackAlertPreservesFallbackAndBlockDetails()
+await testSlackVerificationCannotLookLikeAnIncident()
 await testSlackAlertSendsOnFirstDegradedBrowserRun()
 await testSlackAlertKeepsHttpFirstFailureDebounce()
 await testSlackAlertRecoversLegacyDegradedNotifications()

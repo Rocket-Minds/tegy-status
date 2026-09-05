@@ -226,6 +226,33 @@ export function buildSlackWebhookPayload(
   }
 }
 
+export function buildSlackVerificationPayload(checkedAt: string) {
+  const message =
+    "[Tegy status test] Slack alert delivery is working. No production incident occurred."
+
+  return {
+    attachments: [
+      {
+        blocks: buildSlackBlocks(
+          "Slack status alert delivery test",
+          [
+            { name: "Result", value: "Working", inline: true },
+            {
+              name: "Impact",
+              value:
+                "Synthetic test only. No Tegy component was checked and no incident occurred.",
+              inline: false,
+            },
+          ],
+          checkedAt,
+        ),
+        color: "#1f883d",
+      },
+    ],
+    text: escapeSlackText(message),
+  }
+}
+
 function buildSlackBlocks(
   title: string,
   fields: Array<{ inline: boolean; name: string; value: string }>,
