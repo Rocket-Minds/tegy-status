@@ -38,8 +38,10 @@ Gateway cache misses bounded.
 
 ## Alerting
 
-Slack alerts fire when a component enters a non-up state, recovers, or remains
-unhealthy long enough to pass the reminder window.
+The browser journey sends a Degraded warning on its first failed run, escalates
+to Down on a second consecutive failure, and sends a recovery after either
+notified state. HTTP checks require two consecutive failures before alerting.
+Down states repeat after the reminder window while they remain unresolved.
 
 Alerts are sent only from the status Worker. Tegy app production does not need to
 know about the status page internals.

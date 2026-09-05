@@ -589,6 +589,7 @@ async function maybeSendAlert(
     alertReminderMs,
     alertState,
     currentStatus,
+    notifyOnDegraded: definition.kind === "browser",
     nowMs: Date.now(),
     previousStatus,
   })
