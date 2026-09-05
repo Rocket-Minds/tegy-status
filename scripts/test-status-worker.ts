@@ -101,7 +101,7 @@ async function testSlackAlertPreservesFallbackAndBlockDetails() {
   assertOk(blocks.includes("Timed out after 20000ms."), "Slack blocks should include diagnostics")
 }
 
-async function testSlackAlertSuppressesSingleDegradedBrowserRun() {
+async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
   const firstFailure = classifySample(
     browserDefinition,
     storedComponent(browserDefinition, [sample("up")]),
@@ -121,22 +121,28 @@ async function testSlackAlertSuppressesSingleDegradedBrowserRun() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "up" },
       currentStatus: firstFailure.status,
+      notifyOnDegraded: true,
       nowMs: Date.parse(firstFailure.checkedAt),
       previousStatus: "up",
     }),
-    false,
-    "single degraded browser run should update status history without Slack paging",
+    true,
+    "the first degraded browser run should warn Slack",
   )
   assertEqual(
     shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
-      alertState: { lastStatus: "degraded" },
+      alertState: {
+        lastAlertAt: firstFailure.checkedAt,
+        lastNotifiedStatus: "degraded",
+        lastStatus: "degraded",
+      },
       currentStatus: "up",
+      notifyOnDegraded: true,
       nowMs: Date.now(),
       previousStatus: "degraded",
     }),
-    false,
-    "recovery from an unnotified degraded run should not send a recovery page",
+    true,
+    "recovery from a notified degraded browser run should send a recovery",
   )
 
   const secondFailure = classifySample(
@@ -153,8 +159,13 @@ async function testSlackAlertSuppressesSingleDegradedBrowserRun() {
   assertEqual(
     shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
-      alertState: { lastStatus: "degraded" },
+      alertState: {
+        lastAlertAt: firstFailure.checkedAt,
+        lastNotifiedStatus: "degraded",
+        lastStatus: "degraded",
+      },
       currentStatus: secondFailure.status,
+      notifyOnDegraded: true,
       nowMs: Date.parse(secondFailure.checkedAt),
       previousStatus: "degraded",
     }),
@@ -166,11 +177,33 @@ async function testSlackAlertSuppressesSingleDegradedBrowserRun() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastNotifiedStatus: "down", lastStatus: "down" },
       currentStatus: "up",
+      notifyOnDegraded: true,
       nowMs: Date.now(),
       previousStatus: "down",
     }),
     true,
     "recovery from a notified down state should send a recovery page",
+  )
+}
+
+async function testSlackAlertKeepsHttpFirstFailureDebounce() {
+  const firstFailure = classifySample(
+    marketingDefinition,
+    storedComponent(marketingDefinition, [sample("up")]),
+    sample("down", "Timed out after 20000ms."),
+  )
+
+  assertEqual(
+    shouldSendSlackAlert({
+      alertReminderMs: 3 * 60 * 60 * 1000,
+      alertState: { lastStatus: "up" },
+      currentStatus: firstFailure.status,
+      notifyOnDegraded: false,
+      nowMs: Date.parse(firstFailure.checkedAt),
+      previousStatus: "up",
+    }),
+    false,
+    "the first degraded HTTP check should remain debounced",
   )
 }
 
@@ -185,6 +218,7 @@ async function testSlackAlertRecoversLegacyDegradedNotifications() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: legacyAlertState,
       currentStatus: "up",
+      notifyOnDegraded: true,
       nowMs: Date.parse("2026-07-08T04:31:00.000Z"),
       previousStatus: "degraded",
     }),
@@ -195,7 +229,8 @@ async function testSlackAlertRecoversLegacyDegradedNotifications() {
 
 await testHttpTimeoutRequiresConsecutiveFailure()
 await testSlackAlertPreservesFallbackAndBlockDetails()
-await testSlackAlertSuppressesSingleDegradedBrowserRun()
+await testSlackAlertSendsOnFirstDegradedBrowserRun()
+await testSlackAlertKeepsHttpFirstFailureDebounce()
 await testSlackAlertRecoversLegacyDegradedNotifications()
 
 console.log("Status worker tests passed.")

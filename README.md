@@ -23,6 +23,10 @@ The Worker monitors:
 The browser prompt is selected from 10 fixed two-word phrases, such as
 `pink flamingo`, so Cloudflare AI Gateway cache misses stay bounded.
 
+The first failed browser journey sends a Degraded warning to Slack. A second
+consecutive failure escalates to Down, and the next successful run sends a
+recovery. HTTP checks still require two consecutive failures before alerting.
+
 ## Commands
 
 ```sh
