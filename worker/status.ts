@@ -355,6 +355,7 @@ async function runSyntheticJourney(
       page,
       timeoutMs: syntheticPhraseTimeoutMs,
     })
+    submission.answerObserved()
 
     phase = "logout-open-menu"
     await page.getByTestId("sidebar-account-menu-trigger").click()

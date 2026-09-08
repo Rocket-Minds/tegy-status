@@ -271,6 +271,9 @@ function testSubmissionDiagnostics() {
     ...sample("degraded"), submission: diagnostics.summary(),
   })
   assertOk(JSON.stringify(payload).includes("Message submission"), "Slack includes transport diagnostics")
+  diagnostics.answerObserved()
+  diagnostics.failed(third)
+  assertEqual(diagnostics.summary(), "The expected answer appeared.", "logout closing a stream does not erase a verified answer")
 }
 
 testSubmissionDiagnostics()

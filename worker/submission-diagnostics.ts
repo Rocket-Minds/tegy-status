@@ -1,5 +1,6 @@
 // Keep only transport facts. Never retain request bodies, headers, or query strings.
 export class SubmissionDiagnostics {
+  private answerVisible = false
   private attempts: Array<{ status?: number; failed: boolean }> = []
   private requests = new Map<object, { status?: number; failed: boolean }>()
 
@@ -20,7 +21,12 @@ export class SubmissionDiagnostics {
     if (attempt) attempt.failed = true
   }
 
+  answerObserved() {
+    this.answerVisible = true
+  }
+
   summary() {
+    if (this.answerVisible) return "The expected answer appeared."
     if (!this.attempts.length) return "The browser did not start the message request."
     return this.attempts.slice(-3).map((attempt, index) => {
       const result = attempt.failed
