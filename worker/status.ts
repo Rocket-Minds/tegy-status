@@ -5,6 +5,7 @@ import {
   type Page,
   type Response as PlaywrightResponse,
 } from "@cloudflare/playwright"
+import { SubmissionDiagnostics } from "./submission-diagnostics"
 import {
   buildSlackWebhookPayload,
   classifySample,
@@ -265,6 +266,7 @@ async function runSyntheticJourney(
   const consoleMessages: string[] = []
   const failedNetworkResponses: FailedNetworkResponse[] = []
   const failedNetworkResponseTasks: Promise<void>[] = []
+  const submission = new SubmissionDiagnostics()
   let chatUrl: string | undefined
   let currentUrl: string | undefined
   let phase = "launch-browser"
@@ -276,6 +278,15 @@ async function runSyntheticJourney(
   })
 
   try {
+    page.on("request", (request) => {
+      submission.started(request, request.method(), request.url())
+    })
+    page.on("requestfailed", (request) => submission.failed(request))
+    page.on("pageerror", (error) => {
+      // Exception messages can contain URLs or user data. The error class is
+      // sufficient to distinguish a browser exception from a transport stall.
+      consoleMessages.push(`Browser exception: ${error.name}`)
+    })
     page.on("console", (message) => {
       if (!["error", "warning"].includes(message.type())) return
 
@@ -284,6 +295,7 @@ async function runSyntheticJourney(
       )
     })
     page.on("response", (response) => {
+      submission.responded(response.request(), response.status())
       if (response.status() < 400) return
 
       const task = captureFailedNetworkResponse(response)
@@ -360,6 +372,7 @@ async function runSyntheticJourney(
       failedNetworkResponses: trimDiagnostics(failedNetworkResponses),
       phase,
       phrase,
+      submission: submission.summary(),
       responseTimeMs: Math.round(performance.now() - startedMs),
       status: "up",
     }
@@ -373,6 +386,7 @@ async function runSyntheticJourney(
       failedNetworkResponses: trimDiagnostics(failedNetworkResponses),
       phase,
       phrase,
+      submission: submission.summary(),
     })
   } finally {
     await browser.close().catch(() => undefined)
@@ -1377,7 +1391,9 @@ async function waitForVisibleWithHeartbeat({
     }
   }
 
-  throw lastError ?? new Error("Timed out waiting for locator.")
+  throw new Error(`No matching answer appeared within ${timeoutMs / 1000} seconds.`, {
+    cause: lastError,
+  })
 }
 
 function failedSample(
