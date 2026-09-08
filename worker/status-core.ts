@@ -25,6 +25,7 @@ export type CheckSample = {
   failedNetworkResponses?: FailedNetworkResponse[]
   phase?: string
   phrase?: string
+  submission?: string
   responseTimeMs: number | null
   status: CheckStatus
 }
@@ -192,6 +193,10 @@ export function buildSlackWebhookPayload(
       value: truncate(sample.error, 900),
       inline: false,
     })
+  }
+
+  if (sample.submission && currentStatus !== "up") {
+    fields.push({ name: "Message submission", value: sample.submission, inline: false })
   }
 
   if (sample.consoleMessages?.length) {

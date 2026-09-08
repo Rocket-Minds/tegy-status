@@ -46,6 +46,13 @@ Down states repeat after the reminder window while they remain unresolved.
 Alerts are sent only from the status Worker. Tegy app production does not need to
 know about the status page internals.
 
+Failed chat checks include the message request's transport state: not started,
+waiting for an HTTP response, HTTP status received, or connection failed. An
+HTTP 200 starts a response stream; it does not prove an answer finished. These
+diagnostics contain no request bodies, headers, or query strings. Correlate the
+chat URL with Tegy's durable ledger before blaming model latency. A missing
+chat does not by itself prove whether the browser or server failed.
+
 ## GitHub Dependency
 
 GitHub is intentionally not in the runtime path. A GitHub outage should not stop:

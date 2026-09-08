@@ -8,6 +8,7 @@ import {
   type ComponentDefinition,
   type StoredComponent,
 } from "../worker/status-core.ts"
+import { SubmissionDiagnostics } from "../worker/submission-diagnostics.ts"
 
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected) {
@@ -243,6 +244,36 @@ async function testSlackAlertRecoversLegacyDegradedNotifications() {
   )
 }
 
+function testSubmissionDiagnostics() {
+  const diagnostics = new SubmissionDiagnostics()
+  assertEqual(diagnostics.summary(), "The browser did not start the message request.", "missing POST is distinct from a slow answer")
+  const title = {}
+  diagnostics.started(title, "POST", "https://app.tegy.io/api/chats/abc/title")
+  diagnostics.responded(title, 200)
+  assertOk(diagnostics.summary().includes("did not start"), "title generation is not message acceptance")
+  const request = {}
+  diagnostics.started(request, "POST", "https://app.tegy.io/api/chats/abc/turns?secret=do-not-retain")
+  assertOk(diagnostics.summary().includes("no HTTP response"), "pending requests are visible")
+  diagnostics.responded(request, 200)
+  assertOk(diagnostics.summary().includes("does not confirm a completed answer"), "stream headers are not answer proof")
+  diagnostics.failed(request)
+  assertOk(diagnostics.summary().includes("Connection failed after HTTP 200"), "stream failures remain visible")
+  const second = {}
+  diagnostics.started(second, "POST", "https://app.tegy.io/api/chats/def/turns")
+  diagnostics.failed(second)
+  assertOk(diagnostics.summary().includes("before an HTTP response"), "connection failures without HTTP status are visible")
+  assertOk(!diagnostics.summary().includes("secret"), "query strings are not retained")
+  const third = {}
+  diagnostics.started(third, "POST", "https://app.tegy.io/api/chats/def/turns")
+  diagnostics.responded(third, 403)
+  assertOk(diagnostics.summary().includes("HTTP 403"), "server rejections are visible")
+  const payload = buildSlackWebhookPayload(browserDefinition, {
+    ...sample("degraded"), submission: diagnostics.summary(),
+  })
+  assertOk(JSON.stringify(payload).includes("Message submission"), "Slack includes transport diagnostics")
+}
+
+testSubmissionDiagnostics()
 await testHttpTimeoutRequiresConsecutiveFailure()
 await testSlackAlertPreservesFallbackAndBlockDetails()
 await testSlackVerificationCannotLookLikeAnIncident()
