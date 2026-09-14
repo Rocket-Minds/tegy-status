@@ -704,6 +704,7 @@ function renderIndexPage(summary: Awaited<ReturnType<typeof loadSummary>>) {
           <div class="links">
             <a href="https://tegy.io">Website</a>
             <a href="https://app.tegy.io">App</a>
+            <a href="https://help.tegy.io" target="_blank" rel="noreferrer">Get help</a>
             <a href="/api/status">API</a>
           </div>
         </nav>
@@ -765,6 +766,7 @@ function renderHistoryPage(
           </a>
           <div class="links">
             <a href="/">Status</a>
+            <a href="https://help.tegy.io" target="_blank" rel="noreferrer">Get help</a>
             <a href="/api/status">API</a>
           </div>
         </nav>
