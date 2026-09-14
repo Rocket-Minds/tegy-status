@@ -5,6 +5,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "node scripts/test-status-worker.ts",
+    "test:browser": "node --test scripts/test-workspace-ready.mjs",
     "verify:slack-live": "node scripts/verify-slack-alert.ts",
     "deploy": "wrangler deploy --config wrangler.toml",
     "dev": "wrangler dev --config wrangler.toml"
@@ -12,6 +13,7 @@
   "devDependencies": {
     "@cloudflare/playwright": "^1.3.0",
     "@cloudflare/workers-types": "^4.20260617.1",
+    "playwright": "1.60.0",
     "typescript": "^6.0.3",
     "wrangler": "^4.101.0"
   }
