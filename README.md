@@ -17,8 +17,8 @@ The Worker monitors:
 
 - `https://tegy.io/` - public marketing site.
 - `https://app.tegy.io/health` - app Worker health endpoint.
-- `https://app.tegy.io/new` - browser user journey: login, magic link, composer
-  submit, cached model response, and logout.
+- `https://app.tegy.io/new` - browser user journey: login, magic link, terms
+  acceptance when required, composer submit, cached model response, and logout.
 
 The browser prompt is selected from 10 fixed two-word phrases, such as
 `pink flamingo`, so Cloudflare AI Gateway cache misses stay bounded.
@@ -31,9 +31,16 @@ recovery. HTTP checks still require two consecutive failures before alerting.
 
 ```sh
 npm run check
+npm test
+npm run test:browser
 npm run dev
 npm run deploy
 ```
+
+Browser regression tests use headless Chromium. Install it with
+`npx playwright install chromium`, or set `CHROMIUM_BIN` to an existing binary.
+The monitor accepts terms only for its dedicated synthetic account, through the
+normal checkbox and Continue button. It does not seed acceptance in the database.
 
 Use the Tegy app repo env wrapper when deploying from a local machine that keeps
 Cloudflare credentials in SOPS:

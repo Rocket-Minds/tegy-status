@@ -18,9 +18,15 @@ The browser check uses Cloudflare's Playwright fork:
 3. Read the production magic link from KV after Cloudflare Email Routing invokes
    the Worker's `email()` handler.
 4. Open the magic link.
-5. Submit `Reply with exactly: <phrase>` in the real composer.
-6. Verify the exact phrase renders in the chat response.
-7. Log out through the account menu.
+5. Wait for the composer or the terms dialog. If required, accept terms through
+   the checkbox and Continue button for the dedicated synthetic account.
+6. Submit `Reply with exactly: <phrase>` in the real composer.
+7. Verify the exact phrase renders in the chat response.
+8. Log out through the account menu.
+
+Already accepted accounts proceed directly to the composer. If acceptance does
+not finish, the check fails at the terms step, not at message submission. A
+terms or access screen never counts as a successful chat.
 
 The phrase comes from a fixed pool of 10 two-word phrases to keep Cloudflare AI
 Gateway cache misses bounded.

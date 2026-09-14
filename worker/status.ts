@@ -6,6 +6,7 @@ import {
   type Response as PlaywrightResponse,
 } from "@cloudflare/playwright"
 import { SubmissionDiagnostics } from "./submission-diagnostics"
+import { waitForComposer } from "./workspace-ready"
 import {
   buildSlackWebhookPayload,
   classifySample,
@@ -335,9 +336,7 @@ async function runSyntheticJourney(
     })
     currentUrl = page.url()
 
-    phase = "await-composer"
-    const promptBox = page.getByTestId("new-chat-composer-prompt")
-    await promptBox.waitFor()
+    const promptBox = await waitForComposer(page, (nextPhase) => { phase = nextPhase })
     phase = "fill-composer"
     await promptBox.fill(prompt)
     phase = "submit-composer"
