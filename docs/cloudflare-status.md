@@ -5,7 +5,7 @@ the status page and the monitor runner.
 
 ## Check Flow
 
-Every 30 minutes, Worker Cron runs:
+Every 15 minutes, Worker Cron runs:
 
 1. HTTP check for `https://tegy.io/`.
 2. HTTP check for `https://app.tegy.io/health`.
