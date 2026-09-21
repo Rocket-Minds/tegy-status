@@ -118,7 +118,7 @@ async function testSlackVerificationCannotLookLikeAnIncident() {
   )
 }
 
-async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
+async function testSlackAlertRequiresConsecutiveBrowserFailure() {
   const firstFailure = classifySample(
     browserDefinition,
     storedComponent(browserDefinition, [sample("up")]),
@@ -138,28 +138,22 @@ async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "up" },
       currentStatus: firstFailure.status,
-      notifyOnDegraded: true,
       nowMs: Date.parse(firstFailure.checkedAt),
       previousStatus: "up",
     }),
-    true,
-    "the first degraded browser run should warn Slack",
+    false,
+    "the first degraded browser run should stay quiet on Slack",
   )
   assertEqual(
     shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
-      alertState: {
-        lastAlertAt: firstFailure.checkedAt,
-        lastNotifiedStatus: "degraded",
-        lastStatus: "degraded",
-      },
+      alertState: { lastStatus: "degraded" },
       currentStatus: "up",
-      notifyOnDegraded: true,
       nowMs: Date.now(),
       previousStatus: "degraded",
     }),
-    true,
-    "recovery from a notified degraded browser run should send a recovery",
+    false,
+    "recovery from an unnotified degraded run should not page Slack",
   )
 
   const secondFailure = classifySample(
@@ -176,13 +170,8 @@ async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
   assertEqual(
     shouldSendSlackAlert({
       alertReminderMs: 3 * 60 * 60 * 1000,
-      alertState: {
-        lastAlertAt: firstFailure.checkedAt,
-        lastNotifiedStatus: "degraded",
-        lastStatus: "degraded",
-      },
+      alertState: { lastStatus: "degraded" },
       currentStatus: secondFailure.status,
-      notifyOnDegraded: true,
       nowMs: Date.parse(secondFailure.checkedAt),
       previousStatus: "degraded",
     }),
@@ -194,7 +183,6 @@ async function testSlackAlertSendsOnFirstDegradedBrowserRun() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastNotifiedStatus: "down", lastStatus: "down" },
       currentStatus: "up",
-      notifyOnDegraded: true,
       nowMs: Date.now(),
       previousStatus: "down",
     }),
@@ -215,7 +203,6 @@ async function testSlackAlertKeepsHttpFirstFailureDebounce() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: { lastStatus: "up" },
       currentStatus: firstFailure.status,
-      notifyOnDegraded: false,
       nowMs: Date.parse(firstFailure.checkedAt),
       previousStatus: "up",
     }),
@@ -235,7 +222,6 @@ async function testSlackAlertRecoversLegacyDegradedNotifications() {
       alertReminderMs: 3 * 60 * 60 * 1000,
       alertState: legacyAlertState,
       currentStatus: "up",
-      notifyOnDegraded: true,
       nowMs: Date.parse("2026-07-08T04:31:00.000Z"),
       previousStatus: "degraded",
     }),
@@ -280,7 +266,7 @@ testSubmissionDiagnostics()
 await testHttpTimeoutRequiresConsecutiveFailure()
 await testSlackAlertPreservesFallbackAndBlockDetails()
 await testSlackVerificationCannotLookLikeAnIncident()
-await testSlackAlertSendsOnFirstDegradedBrowserRun()
+await testSlackAlertRequiresConsecutiveBrowserFailure()
 await testSlackAlertKeepsHttpFirstFailureDebounce()
 await testSlackAlertRecoversLegacyDegradedNotifications()
 

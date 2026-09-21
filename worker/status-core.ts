@@ -101,14 +101,12 @@ export function shouldSendSlackAlert({
   alertReminderMs,
   alertState,
   currentStatus,
-  notifyOnDegraded,
   nowMs,
   previousStatus,
 }: {
   alertReminderMs: number
   alertState: AlertState | null | undefined
   currentStatus: CheckStatus
-  notifyOnDegraded: boolean
   nowMs: number
   previousStatus: CheckStatus
 }) {
@@ -122,12 +120,9 @@ export function shouldSendSlackAlert({
   }
 
   if (currentStatus === "degraded") {
-    return (
-      notifyOnDegraded &&
-      (lastNotifiedStatus !== currentStatus ||
-        !Number.isFinite(lastAlertAt) ||
-        nowMs - lastAlertAt > alertReminderMs)
-    )
+    // A single failure stays on the status page. Slack alerts from the second
+    // consecutive failure, when classification has escalated to down.
+    return false
   }
 
   return (

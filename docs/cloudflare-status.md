@@ -44,10 +44,11 @@ Gateway cache misses bounded.
 
 ## Alerting
 
-The browser journey sends a Degraded warning on its first failed run, escalates
-to Down on a second consecutive failure, and sends a recovery after either
-notified state. HTTP checks require two consecutive failures before alerting.
-Down states repeat after the reminder window while they remain unresolved.
+The first failed run shows Degraded on the status page without alerting Slack.
+A second consecutive failure escalates to Down and sends a Slack alert, and the
+next successful run sends a recovery. HTTP checks follow the same rule: two
+consecutive failures before alerting. Down states repeat after the reminder
+window while they remain unresolved.
 
 Alerts are sent only from the status Worker. Tegy app production does not need to
 know about the status page internals.
