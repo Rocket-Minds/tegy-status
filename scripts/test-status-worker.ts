@@ -2,6 +2,7 @@ import {
   buildSlackWebhookPayload,
   buildSlackVerificationPayload,
   classifySample,
+  deriveCurrentStatus,
   shouldSendSlackAlert,
   type AlertState,
   type CheckSample,
@@ -211,6 +212,22 @@ async function testSlackAlertKeepsHttpFirstFailureDebounce() {
   )
 }
 
+async function testStaleBoundaryMatchesShortenedCadence() {
+  const minutesAgo = (minutes: number) =>
+    new Date(Date.now() - minutes * 60 * 1000).toISOString()
+
+  assertEqual(
+    deriveCurrentStatus({ ...sample("up"), checkedAt: minutesAgo(44) }),
+    "up",
+    "a sample within three 15-minute intervals should stay fresh",
+  )
+  assertEqual(
+    deriveCurrentStatus({ ...sample("up"), checkedAt: minutesAgo(46) }),
+    "stale",
+    "a sample older than three 15-minute intervals should be stale",
+  )
+}
+
 async function testSlackAlertRecoversLegacyDegradedNotifications() {
   const legacyAlertState: AlertState = {
     lastAlertAt: "2026-07-08T04:01:00.000Z",
@@ -267,6 +284,7 @@ await testHttpTimeoutRequiresConsecutiveFailure()
 await testSlackAlertPreservesFallbackAndBlockDetails()
 await testSlackVerificationCannotLookLikeAnIncident()
 await testSlackAlertRequiresConsecutiveBrowserFailure()
+await testStaleBoundaryMatchesShortenedCadence()
 await testSlackAlertKeepsHttpFirstFailureDebounce()
 await testSlackAlertRecoversLegacyDegradedNotifications()
 

@@ -49,7 +49,7 @@ export type AlertState = {
   lastStatus?: CheckStatus
 }
 
-const staleAfterMs = 90 * 60 * 1000
+const staleAfterMs = 45 * 60 * 1000
 
 export function classifySample(
   definition: ComponentDefinition,

@@ -12,7 +12,7 @@ routes = [
 binding = "BROWSER"
 
 [triggers]
-crons = ["*/30 * * * *"]
+crons = ["*/15 * * * *"]
 
 [[kv_namespaces]]
 binding = "STATUS_DATA"

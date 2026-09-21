@@ -6,7 +6,7 @@ GitHub is only source control. The public status page, scheduled checks, uptime
 history, and Slack alerts are served and run by Cloudflare:
 
 - Cloudflare Worker: renders the status UI and JSON API.
-- Worker Cron: runs checks every 30 minutes.
+- Worker Cron: runs checks every 15 minutes.
 - Cloudflare KV: stores rolling check history and alert state.
 - Cloudflare Browser Run: runs the browser-backed chat user journey.
 - Cloudflare Email Routing: captures the synthetic user's magic-link email.
